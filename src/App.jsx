@@ -1,0 +1,40 @@
+import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { ToastProvider } from '@/components/ui/Toast'
+import BottomNav from '@/components/layout/BottomNav'
+import Home from '@/pages/Home'
+import Dashboard from '@/pages/Dashboard'
+import Borrowers from '@/pages/Borrowers'
+import BorrowerDetail from '@/pages/BorrowerDetail'
+import NewLoan from '@/pages/NewLoan'
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 30000,
+      retry: 1,
+    },
+  },
+})
+
+export default function App() {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <ToastProvider>
+        <BrowserRouter>
+          <div className="min-h-screen bg-gray-50">
+            <Routes>
+              <Route path="/" element={<Home />} />
+              <Route path="/weekly" element={<Dashboard type="weekly" />} />
+              <Route path="/monthly" element={<Dashboard type="monthly" />} />
+              <Route path="/borrowers" element={<Borrowers />} />
+              <Route path="/borrowers/:id" element={<BorrowerDetail />} />
+              <Route path="/new-loan" element={<NewLoan />} />
+            </Routes>
+            <BottomNav />
+          </div>
+        </BrowserRouter>
+      </ToastProvider>
+    </QueryClientProvider>
+  )
+}
