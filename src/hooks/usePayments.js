@@ -85,6 +85,7 @@ function interestPortion(payment) {
   if (!loan) return 0
   const principal = Number(loan.principal)
   const rate = Number(loan.interest_rate)
+  // Interest is always principal × rate — fixed regardless of partial payment
   const interest = principal * (rate / 100)
   if (loan.type === 'monthly') return interest
   return interest / 6
@@ -126,21 +127,47 @@ export function useDashboardStats(type) {
   return useQuery({
     queryKey: ['dashboard-stats', type],
     queryFn: async () => {
+      // Active loan count
       const { data: loans, error: lErr } = await supabase
         .from('loans')
-        .select('principal, total_due, status')
+        .select('id, interest_rate')
         .eq('type', type)
+        .eq('status', 'active')
       if (lErr) throw lErr
+      const activeCount = loans.length
 
-      const active = loans.filter((l) => l.status === 'active')
-      const totalLent = active.reduce((s, l) => s + Number(l.principal), 0)
-      const outstanding = active.reduce((s, l) => s + Number(l.total_due), 0)
-      const activeCount = active.length
+      // Build a map of interest_rate per loan id
+      const rateMap = {}
+      loans.forEach((l) => { rateMap[l.id] = Number(l.interest_rate) })
 
+      // Unpaid payment rows for active loans of this type
+      const { data: unpaidRows, error: uErr } = await supabase
+        .from('payments')
+        .select('loan_id, amount_due, loan:loans(type, status, interest_rate)')
+        .is('paid_at', null)
+        .eq('loan.type', type)
+        .eq('loan.status', 'active')
+      if (uErr) throw uErr
+
+      const unpaid = unpaidRows.filter((p) => p.loan?.type === type && p.loan?.status === 'active')
+
+      // Outstanding = sum of all unpaid amount_due
+      const outstanding = unpaid.reduce((s, p) => s + Number(p.amount_due), 0)
+
+      // Total Lent = outstanding minus interest portion still owed
+      // i.e. just the remaining capital
+      const totalLent = unpaid.reduce((s, p) => {
+        const rate = Number(p.loan?.interest_rate || 0)
+        const amountDue = Number(p.amount_due)
+        // capital portion = amount_due / (1 + rate/100)
+        return s + amountDue / (1 + rate / 100)
+      }, 0)
+
+      // Profit = interest portion of paid payments this month
       const startOfMonth = format(new Date(new Date().getFullYear(), new Date().getMonth(), 1), 'yyyy-MM-dd')
       const { data: paidThisMonth, error: pErr } = await supabase
         .from('payments')
-        .select('amount_due, loan:loans(type, principal, interest_rate)')
+        .select('amount_due, amount_paid, collection_type, loan:loans(type, principal, interest_rate)')
         .gte('paid_at', startOfMonth)
         .not('paid_at', 'is', null)
       if (pErr) throw pErr
