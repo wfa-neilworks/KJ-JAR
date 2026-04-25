@@ -77,7 +77,7 @@ function ActiveLoansModal({ open, onClose, loans }) {
 function CollectedChartModal({ open, onClose, type }) {
   const { data: chartData = [], isLoading } = useCollectedByMonth(type)
   return (
-    <Modal open={open} onClose={onClose} title="Monthly Collections">
+    <Modal open={open} onClose={onClose} title="Monthly Profit (Interest)">
       {isLoading ? (
         <p className="text-center text-gray-400 py-6">Loading chart...</p>
       ) : (
@@ -141,9 +141,9 @@ export default function Dashboard({ type }) {
         />
         <StatTile
           tileKey="collected"
-          label="Collected"
+          label="Profit"
           value={loading || formatPeso(stats?.collected || 0)}
-          sublabel="This month · tap for chart"
+          sublabel="Interest this month · tap for chart"
           onClick={() => setShowChart(true)}
         />
         <StatTile

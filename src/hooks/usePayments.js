@@ -49,13 +49,23 @@ export function useMarkPaid() {
   })
 }
 
+function interestPortion(payment) {
+  const { loan } = payment
+  if (!loan) return 0
+  const principal = Number(loan.principal)
+  const rate = Number(loan.interest_rate)
+  const interest = principal * (rate / 100)
+  if (loan.type === 'monthly') return interest
+  return interest / 6
+}
+
 export function useCollectedByMonth(type) {
   return useQuery({
     queryKey: ['payments', 'collected-by-month', type],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('payments')
-        .select('paid_at, amount_due, loan:loans(type)')
+        .select('paid_at, amount_due, loan:loans(type, principal, interest_rate)')
         .not('paid_at', 'is', null)
 
       if (error) throw error
@@ -65,7 +75,7 @@ export function useCollectedByMonth(type) {
       const map = {}
       filtered.forEach((p) => {
         const month = format(new Date(p.paid_at), 'yyyy-MM')
-        map[month] = (map[month] || 0) + Number(p.amount_due)
+        map[month] = (map[month] || 0) + interestPortion(p)
       })
 
       const months = []
@@ -99,14 +109,14 @@ export function useDashboardStats(type) {
       const startOfMonth = format(new Date(new Date().getFullYear(), new Date().getMonth(), 1), 'yyyy-MM-dd')
       const { data: paidThisMonth, error: pErr } = await supabase
         .from('payments')
-        .select('amount_due, loan:loans(type)')
+        .select('amount_due, loan:loans(type, principal, interest_rate)')
         .gte('paid_at', startOfMonth)
         .not('paid_at', 'is', null)
       if (pErr) throw pErr
 
       const collected = paidThisMonth
         .filter((p) => p.loan?.type === type)
-        .reduce((s, p) => s + Number(p.amount_due), 0)
+        .reduce((s, p) => s + interestPortion(p), 0)
 
       return { totalLent, outstanding, collected, activeCount }
     },
