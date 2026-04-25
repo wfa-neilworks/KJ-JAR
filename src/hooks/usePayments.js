@@ -202,12 +202,19 @@ export function useDashboardStats(type) {
       // Outstanding = sum of remaining unpaid amount_due
       const outstanding = unpaidRows.reduce((s, p) => s + Number(p.amount_due), 0)
 
-      // Total Lent = principal minus amount_due of each paid payment EXCEPT the last one
-      // (last payment is pure interest/profit, not capital recovery)
-      const totalPaidCapital = paidRows
-        .filter((p) => p.week_number !== maxWeek[p.loan_id])
-        .reduce((s, p) => s + Number(p.amount_due), 0)
-      const totalLent = Math.max(0, loans.reduce((s, l) => s + Number(l.principal), 0) - totalPaidCapital)
+      // Total Lent:
+      // Monthly — always the full principal (capital stays until complete payment)
+      // Weekly — principal minus amount_due of each paid payment except the last
+      //          (last payment is pure interest, not capital recovery)
+      let totalLent
+      if (type === 'monthly') {
+        totalLent = loans.reduce((s, l) => s + Number(l.principal), 0)
+      } else {
+        const totalPaidCapital = paidRows
+          .filter((p) => p.week_number !== maxWeek[p.loan_id])
+          .reduce((s, p) => s + Number(p.amount_due), 0)
+        totalLent = Math.max(0, loans.reduce((s, l) => s + Number(l.principal), 0) - totalPaidCapital)
+      }
 
       // Step 3: profit = interest on paid payments this month for this loan type
       const startOfMonth = format(new Date(new Date().getFullYear(), new Date().getMonth(), 1), 'yyyy-MM-dd')
