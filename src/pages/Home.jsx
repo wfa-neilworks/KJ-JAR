@@ -54,9 +54,10 @@ function PaymentItem({ payment, onPay }) {
 }
 
 const confirmLabels = {
-  complete:      { title: 'Complete Collection', color: 'text-green-700', bg: 'bg-green-50 border-green-200' },
-  interest_only: { title: 'Interest Only',       color: 'text-blue-700',  bg: 'bg-blue-50 border-blue-200'  },
-  partial:       { title: 'Partial Collection',  color: 'text-orange-700',bg: 'bg-orange-50 border-orange-200' },
+  complete:      { title: 'Complete Collection', color: 'text-green-700',  bg: 'bg-green-50 border-green-200'  },
+  interest_only: { title: 'Interest Only',       color: 'text-blue-700',   bg: 'bg-blue-50 border-blue-200'   },
+  partial:       { title: 'Partial Collection',  color: 'text-orange-700', bg: 'bg-orange-50 border-orange-200' },
+  lapsed:        { title: 'Lapse',               color: 'text-red-700',    bg: 'bg-red-50 border-red-200'      },
 }
 
 function CollectionModal({ selected, payments, onClose, markPaid }) {
@@ -101,6 +102,7 @@ function CollectionModal({ selected, payments, onClose, markPaid }) {
       amountPaid = parseFloat(partialAmount)
       rolloverAmount = amountDue - amountPaid
     }
+    // lapsed: no amountPaid needed, handled entirely in useMarkPaid
 
     try {
       await markPaid.mutateAsync({
@@ -110,6 +112,7 @@ function CollectionModal({ selected, payments, onClose, markPaid }) {
         amountPaid,
         rolloverAmount,
         interestRate: rate,
+        principal,
         note,
       })
       toast({ message: 'Payment recorded!', type: 'success' })
@@ -181,6 +184,18 @@ function CollectionModal({ selected, payments, onClose, markPaid }) {
               <p className="font-semibold text-orange-700">Partial Collection</p>
               <p className="text-sm text-orange-600 mt-0.5">
                 Collect a partial amount — balance + interest rolls over next month
+              </p>
+            </button>
+          )}
+
+          {isMonthly && (
+            <button
+              onClick={() => requestConfirm('lapsed')}
+              className="w-full text-left rounded-xl border-2 border-red-200 bg-red-50 px-4 py-3 hover:border-red-400 transition-colors"
+            >
+              <p className="font-semibold text-red-700">Lapse</p>
+              <p className="text-sm text-red-600 mt-0.5">
+                Borrower failed to pay — interest {formatPeso(interest)} logged as debt, capital rolls over next month
               </p>
             </button>
           )}
@@ -266,6 +281,7 @@ function CollectionModal({ selected, payments, onClose, markPaid }) {
               {pendingType === 'complete' && `Collect ${formatPeso(amountDue)} — this loan will be marked complete.`}
               {pendingType === 'interest_only' && `Collect ${formatPeso(interest)} interest. Capital ${formatPeso(principal)} rolls over next month.`}
               {pendingType === 'partial' && `Collect ${formatPeso(parseFloat(partialAmount))}. Remaining ${formatPeso(amountDue - parseFloat(partialAmount))} + ${rate}% interest due next month.`}
+              {pendingType === 'lapsed' && `Interest ${formatPeso(interest)} logged as unpaid debt. Capital ${formatPeso(principal)} rolls over next month.`}
             </p>
             {note && <p className="text-xs text-gray-400 mt-2 italic">Note: "{note}"</p>}
           </div>

@@ -15,11 +15,13 @@ const collectionBadge = {
   complete:      'bg-green-100 text-green-700',
   interest_only: 'bg-blue-100 text-blue-700',
   partial:       'bg-orange-100 text-orange-700',
+  lapsed:        'bg-red-100 text-red-700',
 }
 const collectionLabel = {
   complete:      'Complete',
   interest_only: 'Interest Only',
   partial:       'Partial',
+  lapsed:        'Lapsed',
 }
 
 function EditBorrowerModal({ borrower, onClose }) {
@@ -287,45 +289,57 @@ function LoanCard({ loan }) {
           {loan.payments && loan.payments.length > 0 && (
             <div className="flex flex-col gap-1.5">
               <p className="text-xs font-medium text-gray-600 uppercase tracking-wide">Payments</p>
-              {loan.payments.map((p) => (
-                <div key={p.id} className={`flex flex-col gap-1 text-sm py-2 px-3 rounded-lg ${
-                  p.paid_at ? 'bg-green-50' : 'bg-gray-50'
-                }`}>
-                  <div className="flex items-center justify-between">
-                    <span className="text-gray-600">
-                      {loan.type === 'weekly' ? `Week ${p.week_number}` : `Payment #${p.week_number}`}
-                      {' — '}
-                      {p.paid_at
-                        ? format(new Date(p.paid_at), 'MMM d, yyyy h:mm a')
-                        : `Due ${format(new Date(p.due_date), 'MMM d, yyyy')}`}
-                    </span>
-                    <div className="flex items-center gap-2">
-                      <span className={`font-semibold ${p.paid_at ? 'text-green-600' : 'text-gray-800'}`}>
-                        {p.paid_at ? formatPeso(p.amount_paid ?? p.amount_due) : formatPeso(p.amount_due)}
+              {loan.payments.map((p) => {
+                const isLapsed = p.collection_type === 'lapsed' && !p.paid_at
+                const rowBg = p.paid_at ? 'bg-green-50' : isLapsed ? 'bg-red-50' : p.is_lapse_fee ? 'bg-yellow-50' : 'bg-gray-50'
+                const label = p.is_lapse_fee
+                  ? `Lapse Fee #${p.week_number}`
+                  : loan.type === 'weekly' ? `Week ${p.week_number}` : `Payment #${p.week_number}`
+                return (
+                  <div key={p.id} className={`flex flex-col gap-1 text-sm py-2 px-3 rounded-lg ${rowBg}`}>
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-600">
+                        {label}
+                        {' — '}
+                        {p.paid_at
+                          ? format(new Date(p.paid_at), 'MMM d, yyyy h:mm a')
+                          : isLapsed
+                          ? `Lapsed ${format(new Date(p.lapsed_at), 'MMM d, yyyy')}`
+                          : `Due ${format(new Date(p.due_date), 'MMM d, yyyy')}`}
                       </span>
-                      <button
-                        onClick={() => setEditPayment(p)}
-                        className="p-1 rounded-full hover:bg-white text-gray-400 hover:text-gray-700"
-                        title="Edit payment"
-                      >
-                        <Pencil size={13} />
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <span className={`font-semibold ${p.paid_at ? 'text-green-600' : isLapsed ? 'text-red-600' : 'text-gray-800'}`}>
+                          {p.paid_at ? formatPeso(p.amount_paid ?? p.amount_due) : formatPeso(p.amount_due)}
+                        </span>
+                        <button
+                          onClick={() => setEditPayment(p)}
+                          className="p-1 rounded-full hover:bg-white text-gray-400 hover:text-gray-700"
+                          title="Edit payment"
+                        >
+                          <Pencil size={13} />
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                  {p.paid_at && (
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-                        collectionBadge[p.collection_type] || collectionBadge.complete
-                      }`}>
-                        {collectionLabel[p.collection_type] || 'Complete'}
-                      </span>
+                      {(p.paid_at || isLapsed) && (
+                        <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                          collectionBadge[p.collection_type] || collectionBadge.complete
+                        }`}>
+                          {collectionLabel[p.collection_type] || 'Complete'}
+                        </span>
+                      )}
+                      {p.is_lapse_fee && !p.paid_at && (
+                        <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700">
+                          Unpaid Interest
+                        </span>
+                      )}
                       {p.note && (
                         <span className="text-xs text-gray-500 italic">"{p.note}"</span>
                       )}
                     </div>
-                  )}
-                </div>
-              ))}
+                  </div>
+                )
+              })}
             </div>
           )}
         </div>

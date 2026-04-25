@@ -26,8 +26,51 @@ export function useUpcomingPayments() {
 export function useMarkPaid() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async ({ paymentId, loanId, collectionType, amountPaid, rolloverAmount, interestRate, note }) => {
+    mutationFn: async ({ paymentId, loanId, collectionType, amountPaid, rolloverAmount, interestRate, principal, note }) => {
       const now = new Date().toISOString()
+
+      if (collectionType === 'lapsed') {
+        // Mark current payment as lapsed (stays unpaid/collectible — only set lapsed_at)
+        const { error: lapseErr } = await supabase
+          .from('payments')
+          .update({ lapsed_at: now, collection_type: 'lapsed', note: note || null })
+          .eq('id', paymentId)
+        if (lapseErr) throw lapseErr
+
+        // Get max week_number to increment for new rows
+        const { data: existingPayments } = await supabase
+          .from('payments')
+          .select('week_number')
+          .eq('loan_id', loanId)
+          .order('week_number', { ascending: false })
+          .limit(1)
+        const maxWeek = existingPayments?.[0]?.week_number || 1
+
+        const interest = principal * (interestRate / 100)
+        const newDueDate = format(addMonths(new Date(), 1), 'yyyy-MM-dd')
+
+        // Insert standalone lapse fee row (just the interest, collectible anytime)
+        const { error: feeErr } = await supabase.from('payments').insert({
+          loan_id: loanId,
+          week_number: maxWeek + 1,
+          amount_due: interest,
+          due_date: newDueDate,
+          is_lapse_fee: true,
+        })
+        if (feeErr) throw feeErr
+
+        // Insert rollover row next month (full capital + interest)
+        const newTotalDue = principal * (1 + interestRate / 100)
+        const { error: rollErr } = await supabase.from('payments').insert({
+          loan_id: loanId,
+          week_number: maxWeek + 2,
+          amount_due: newTotalDue,
+          due_date: newDueDate,
+        })
+        if (rollErr) throw rollErr
+
+        return
+      }
 
       // Mark current payment as paid with actual amount and type
       const { error } = await supabase
@@ -47,7 +90,6 @@ export function useMarkPaid() {
         const newTotalDue = newCapital * (1 + interestRate / 100)
         const newDueDate = format(addMonths(new Date(), 1), 'yyyy-MM-dd')
 
-        // Get current max week_number for this loan to increment
         const { data: existingPayments } = await supabase
           .from('payments')
           .select('week_number')
@@ -97,6 +139,9 @@ function interestPortion(payment) {
   const rate = Number(loan.interest_rate)
   const interest = principal * (rate / 100)
 
+  // Lapse fee row = just the interest amount, counts as profit when collected
+  if (payment.is_lapse_fee) return Number(payment.amount_paid || payment.amount_due)
+
   if (loan.type === 'monthly') return interest
 
   // Weekly: profit is only counted on the LAST payment (week 6)
@@ -104,10 +149,10 @@ function interestPortion(payment) {
   return 0
 }
 
-async function fetchPaidWithLastFlag(extraFilter) {
+async function fetchPaidWithLastFlag() {
   const { data, error } = await supabase
     .from('payments')
-    .select('loan_id, week_number, paid_at, amount_due, amount_paid, collection_type, loan:loans(type, principal, interest_rate)')
+    .select('loan_id, week_number, paid_at, amount_due, amount_paid, collection_type, is_lapse_fee, loan:loans(type, principal, interest_rate)')
     .not('paid_at', 'is', null)
   if (error) throw error
 
