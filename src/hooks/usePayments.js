@@ -185,7 +185,7 @@ export function useDashboardStats(type) {
       // Get all payment rows for active loans (paid and unpaid) to compute stats
       const { data: allRows, error: uErr } = await supabase
         .from('payments')
-        .select('loan_id, amount_due, paid_at, week_number')
+        .select('loan_id, amount_due, amount_paid, collection_type, paid_at, week_number')
         .in('loan_id', activeLoanIds)
       if (uErr) throw uErr
 
@@ -203,12 +203,27 @@ export function useDashboardStats(type) {
       const outstanding = unpaidRows.reduce((s, p) => s + Number(p.amount_due), 0)
 
       // Total Lent:
-      // Monthly — always the full principal (capital stays until complete payment)
+      // Monthly — principal minus capital recovered through partial payments.
+      //   interest_only: no capital recovered (borrower still owes full principal)
+      //   partial: capital recovered = amount_paid - interest (interest = principal * rate%)
+      //   complete: loan closed, not in active loans anymore
       // Weekly — principal minus amount_due of each paid payment except the last
       //          (last payment is pure interest, not capital recovery)
       let totalLent
+      const rateMap = {}
+      loans.forEach((l) => { rateMap[l.id] = Number(l.interest_rate) })
+
       if (type === 'monthly') {
-        totalLent = loans.reduce((s, l) => s + Number(l.principal), 0)
+        const capitalRecovered = paidRows.reduce((s, p) => {
+          if (p.collection_type === 'interest_only') return s
+          if (p.collection_type === 'partial') {
+            const rate = rateMap[p.loan_id] || 0
+            const interest = Number(principalMap[p.loan_id]) * (rate / 100)
+            return s + Math.max(0, Number(p.amount_paid) - interest)
+          }
+          return s
+        }, 0)
+        totalLent = Math.max(0, loans.reduce((s, l) => s + Number(l.principal), 0) - capitalRecovered)
       } else {
         const totalPaidCapital = paidRows
           .filter((p) => p.week_number !== maxWeek[p.loan_id])
