@@ -26,7 +26,7 @@ export function useUpcomingPayments() {
 export function useMarkPaid() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async ({ paymentId, loanId, isLastPayment, collectionType, amountPaid, rolloverAmount, interestRate, note }) => {
+    mutationFn: async ({ paymentId, loanId, collectionType, amountPaid, rolloverAmount, interestRate, note }) => {
       const now = new Date().toISOString()
 
       // Mark current payment as paid with actual amount and type
@@ -63,13 +63,23 @@ export function useMarkPaid() {
           due_date: newDueDate,
         })
         if (rollErr) throw rollErr
-      } else if (isLastPayment) {
-        // Complete collection and no more payments — close the loan
-        const { error: loanErr } = await supabase
-          .from('loans')
-          .update({ status: 'completed' })
-          .eq('id', loanId)
-        if (loanErr) throw loanErr
+      } else {
+        // Check directly in DB whether any other unpaid rows remain for this loan
+        const { data: remaining } = await supabase
+          .from('payments')
+          .select('id')
+          .eq('loan_id', loanId)
+          .is('paid_at', null)
+          .neq('id', paymentId)
+          .limit(1)
+
+        if (!remaining || remaining.length === 0) {
+          const { error: loanErr } = await supabase
+            .from('loans')
+            .update({ status: 'completed' })
+            .eq('id', loanId)
+          if (loanErr) throw loanErr
+        }
       }
     },
     onSuccess: () => {
@@ -158,7 +168,6 @@ export function useDashboardStats(type) {
       if (lErr) throw lErr
 
       const activeCount = loans.length
-      console.log('[dashboard-stats] type:', type, 'active loans:', loans)
       if (activeCount === 0) {
         // Still need profit even if no active loans
         const startOfMonth = format(new Date(new Date().getFullYear(), new Date().getMonth(), 1), 'yyyy-MM-dd')
@@ -180,7 +189,6 @@ export function useDashboardStats(type) {
         .is('paid_at', null)
         .in('loan_id', activeLoanIds)
       if (uErr) throw uErr
-      console.log('[dashboard-stats] unpaid rows:', unpaidRows)
 
       // Outstanding = sum of all unpaid amount_due
       const outstanding = unpaidRows.reduce((s, p) => s + Number(p.amount_due), 0)

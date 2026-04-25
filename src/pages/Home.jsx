@@ -103,12 +103,9 @@ function CollectionModal({ selected, payments, onClose, markPaid }) {
     }
 
     try {
-      const loanPayments = payments.filter((p) => p.loan_id === selected.loan_id)
-      const unpaid = loanPayments.filter((p) => !p.paid_at && p.id !== selected.id)
       await markPaid.mutateAsync({
         paymentId: selected.id,
         loanId: selected.loan_id,
-        isLastPayment: unpaid.length === 0,
         collectionType,
         amountPaid,
         rolloverAmount,
