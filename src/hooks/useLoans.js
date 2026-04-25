@@ -52,11 +52,11 @@ export function useEditLoan() {
 export function useEditPayment() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async ({ id, amount_due, amount_paid, due_date, loan }) => {
-      const principal = Number(loan.principal)
+    mutationFn: async ({ id, amount_due, amount_paid, due_date, loan, week_number }) => {
       const rate = Number(loan.interest_rate)
-      const interest = principal * (rate / 100)
+      const interest = Number(loan.principal) * (rate / 100)
 
+      // Determine collection type from new amounts
       let collection_type = null
       if (amount_paid !== null && amount_paid !== undefined) {
         const paid = Number(amount_paid)
@@ -66,14 +66,54 @@ export function useEditPayment() {
         else collection_type = 'partial'
       }
 
+      // Save the edited payment
       const updates = { amount_due, due_date }
       if (amount_paid !== null && amount_paid !== undefined) {
         updates.amount_paid = amount_paid
         updates.collection_type = collection_type
       }
-
       const { error } = await supabase.from('payments').update(updates).eq('id', id)
       if (error) throw error
+
+      // Waterfall: find the next unpaid rollover row and recalculate it
+      if (collection_type === 'partial' || collection_type === 'interest_only') {
+        const { data: nextRows } = await supabase
+          .from('payments')
+          .select('id, week_number')
+          .eq('loan_id', loan.id)
+          .is('paid_at', null)
+          .gt('week_number', week_number)
+          .order('week_number', { ascending: true })
+          .limit(1)
+
+        if (nextRows && nextRows.length > 0) {
+          const remaining = Number(amount_due) - Number(amount_paid)
+          // For interest_only: remaining is the full original capital (amount_due - interest)
+          const newCapital = collection_type === 'interest_only'
+            ? Number(amount_due) - interest
+            : remaining
+          const newAmountDue = newCapital * (1 + rate / 100)
+          const { error: rollErr } = await supabase
+            .from('payments')
+            .update({ amount_due: newAmountDue })
+            .eq('id', nextRows[0].id)
+          if (rollErr) throw rollErr
+        }
+      } else if (collection_type === 'complete') {
+        // If edited to complete, delete any unpaid rollover rows after this one
+        const { data: futureRows } = await supabase
+          .from('payments')
+          .select('id')
+          .eq('loan_id', loan.id)
+          .is('paid_at', null)
+          .gt('week_number', week_number)
+        if (futureRows && futureRows.length > 0) {
+          await supabase
+            .from('payments')
+            .delete()
+            .in('id', futureRows.map((r) => r.id))
+        }
+      }
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['loans'] }),
   })

@@ -137,6 +137,7 @@ function EditPaymentModal({ payment, loan, onClose }) {
         amount_paid: payment.paid_at ? parseFloat(amountPaid) : undefined,
         due_date: dueDate,
         loan,
+        week_number: payment.week_number,
       })
       toast({ message: 'Payment updated', type: 'success' })
       onClose()
