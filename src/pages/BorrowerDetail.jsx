@@ -44,10 +44,14 @@ function LoanCard({ loan }) {
               p.paid_at ? 'bg-green-50' : 'bg-gray-50'
             }`}>
               <span className="text-gray-600">
-                {loan.type === 'weekly' ? `Week ${p.week_number}` : 'Payment'} — {format(new Date(p.due_date), 'MMM d, yyyy')}
+                {loan.type === 'weekly' ? `Week ${p.week_number}` : 'Payment'}
+                {' — '}
+                {p.paid_at
+                  ? format(new Date(p.paid_at), 'MMM d, yyyy h:mm a')
+                  : `Due ${format(new Date(p.due_date), 'MMM d, yyyy')}`}
               </span>
               <span className={`font-medium ${p.paid_at ? 'text-green-600' : 'text-gray-800'}`}>
-                {p.paid_at ? '✓ Paid' : formatPeso(p.amount_due)}
+                {p.paid_at ? '✓ Collected' : formatPeso(p.amount_due)}
               </span>
             </div>
           ))}
