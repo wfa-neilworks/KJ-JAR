@@ -30,10 +30,11 @@ export function useMarkPaid() {
       const now = new Date().toISOString()
 
       if (collectionType === 'lapsed') {
-        // Mark current payment as lapsed (stays unpaid/collectible — only set lapsed_at)
+        // Close the original payment row (paid_at = now, amount_paid = 0, type = lapsed)
+        // so it disappears from Home and doesn't count in Outstanding
         const { error: lapseErr } = await supabase
           .from('payments')
-          .update({ lapsed_at: now, collection_type: 'lapsed', note: note || null })
+          .update({ paid_at: now, amount_paid: 0, collection_type: 'lapsed', note: note || null })
           .eq('id', paymentId)
         if (lapseErr) throw lapseErr
 
@@ -49,7 +50,7 @@ export function useMarkPaid() {
         const interest = principal * (interestRate / 100)
         const newDueDate = format(addMonths(new Date(), 1), 'yyyy-MM-dd')
 
-        // Insert standalone lapse fee row (just the interest, collectible anytime)
+        // Insert lapse fee row — just the interest, unpaid, collectible anytime
         const { error: feeErr } = await supabase.from('payments').insert({
           loan_id: loanId,
           week_number: maxWeek + 1,
@@ -123,6 +124,25 @@ export function useMarkPaid() {
           if (loanErr) throw loanErr
         }
       }
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['payments'] })
+      qc.invalidateQueries({ queryKey: ['loans'] })
+      qc.invalidateQueries({ queryKey: ['dashboard-stats'] })
+    },
+  })
+}
+
+export function useCollectLapseFee() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ paymentId }) => {
+      const now = new Date().toISOString()
+      const { error } = await supabase
+        .from('payments')
+        .update({ paid_at: now, amount_paid: null, collection_type: 'complete' })
+        .eq('id', paymentId)
+      if (error) throw error
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['payments'] })

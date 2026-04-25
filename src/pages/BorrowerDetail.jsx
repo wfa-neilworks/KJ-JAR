@@ -8,6 +8,7 @@ import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import { useBorrowers, useEditBorrower } from '@/hooks/useBorrowers'
 import { useLoansByBorrower, useEditLoan, useEditPayment } from '@/hooks/useLoans'
+import { useCollectLapseFee } from '@/hooks/usePayments'
 import { useToast } from '@/components/ui/Toast'
 import { formatPeso } from '@/lib/loanUtils'
 
@@ -230,9 +231,22 @@ function EditPaymentModal({ payment, loan, onClose }) {
 }
 
 function LoanCard({ loan }) {
+  const toast = useToast()
+  const collectLapseFee = useCollectLapseFee()
   const [expanded, setExpanded] = useState(false)
   const [editLoan, setEditLoan] = useState(false)
   const [editPayment, setEditPayment] = useState(null)
+  const [collectingLapseFee, setCollectingLapseFee] = useState(null)
+
+  const handleCollectLapseFee = async () => {
+    try {
+      await collectLapseFee.mutateAsync({ paymentId: collectingLapseFee.id })
+      toast({ message: 'Lapse fee collected!', type: 'success' })
+      setCollectingLapseFee(null)
+    } catch {
+      toast({ message: 'Failed to collect lapse fee', type: 'error' })
+    }
+  }
 
   const paidCount = loan.payments?.filter((p) => p.paid_at).length || 0
   const totalCount = loan.payments?.length || 0
@@ -290,48 +304,57 @@ function LoanCard({ loan }) {
             <div className="flex flex-col gap-1.5">
               <p className="text-xs font-medium text-gray-600 uppercase tracking-wide">Payments</p>
               {loan.payments.map((p) => {
-                const isLapsed = p.collection_type === 'lapsed' && !p.paid_at
-                const rowBg = p.paid_at ? 'bg-green-50' : isLapsed ? 'bg-red-50' : p.is_lapse_fee ? 'bg-yellow-50' : 'bg-gray-50'
+                const isLapsed = p.collection_type === 'lapsed' && p.paid_at
+                const isUnpaidLapseFee = p.is_lapse_fee && !p.paid_at
+                const rowBg = p.paid_at && !isLapsed ? 'bg-green-50' : isLapsed ? 'bg-red-50' : isUnpaidLapseFee ? 'bg-yellow-50' : 'bg-gray-50'
                 const label = p.is_lapse_fee
-                  ? `Lapse Fee #${p.week_number}`
+                  ? 'Unpaid Interest (Lapse)'
                   : loan.type === 'weekly' ? `Week ${p.week_number}` : `Payment #${p.week_number}`
                 return (
-                  <div key={p.id} className={`flex flex-col gap-1 text-sm py-2 px-3 rounded-lg ${rowBg}`}>
+                  <div
+                    key={p.id}
+                    className={`flex flex-col gap-1 text-sm py-2 px-3 rounded-lg ${rowBg} ${isUnpaidLapseFee ? 'cursor-pointer hover:brightness-95' : ''}`}
+                    onClick={isUnpaidLapseFee ? () => setCollectingLapseFee(p) : undefined}
+                  >
                     <div className="flex items-center justify-between">
                       <span className="text-gray-600">
                         {label}
                         {' — '}
-                        {p.paid_at
+                        {isLapsed
+                          ? `Lapsed ${format(new Date(p.paid_at), 'MMM d, yyyy')}`
+                          : p.paid_at
                           ? format(new Date(p.paid_at), 'MMM d, yyyy h:mm a')
-                          : isLapsed
-                          ? `Lapsed ${format(new Date(p.lapsed_at), 'MMM d, yyyy')}`
                           : `Due ${format(new Date(p.due_date), 'MMM d, yyyy')}`}
                       </span>
                       <div className="flex items-center gap-2">
-                        <span className={`font-semibold ${p.paid_at ? 'text-green-600' : isLapsed ? 'text-red-600' : 'text-gray-800'}`}>
-                          {p.paid_at ? formatPeso(p.amount_paid ?? p.amount_due) : formatPeso(p.amount_due)}
+                        <span className={`font-semibold ${p.paid_at && !isLapsed ? 'text-green-600' : isLapsed ? 'text-red-500' : isUnpaidLapseFee ? 'text-yellow-700' : 'text-gray-800'}`}>
+                          {formatPeso(p.amount_due)}
                         </span>
-                        <button
-                          onClick={() => setEditPayment(p)}
-                          className="p-1 rounded-full hover:bg-white text-gray-400 hover:text-gray-700"
-                          title="Edit payment"
-                        >
-                          <Pencil size={13} />
-                        </button>
+                        {!isUnpaidLapseFee && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setEditPayment(p) }}
+                            className="p-1 rounded-full hover:bg-white text-gray-400 hover:text-gray-700"
+                            title="Edit payment"
+                          >
+                            <Pencil size={13} />
+                          </button>
+                        )}
                       </div>
                     </div>
                     <div className="flex items-center gap-2 flex-wrap">
-                      {(p.paid_at || isLapsed) && (
-                        <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-                          collectionBadge[p.collection_type] || collectionBadge.complete
-                        }`}>
+                      {isLapsed && (
+                        <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-red-100 text-red-700">Lapsed</span>
+                      )}
+                      {isUnpaidLapseFee && (
+                        <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700">Tap to collect</span>
+                      )}
+                      {p.paid_at && !isLapsed && !p.is_lapse_fee && (
+                        <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${collectionBadge[p.collection_type] || collectionBadge.complete}`}>
                           {collectionLabel[p.collection_type] || 'Complete'}
                         </span>
                       )}
-                      {p.is_lapse_fee && !p.paid_at && (
-                        <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700">
-                          Unpaid Interest
-                        </span>
+                      {p.paid_at && p.is_lapse_fee && (
+                        <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-green-100 text-green-700">Interest Collected</span>
                       )}
                       {p.note && (
                         <span className="text-xs text-gray-500 italic">"{p.note}"</span>
@@ -344,6 +367,31 @@ function LoanCard({ loan }) {
           )}
         </div>
       )}
+
+      {/* Collect Lapse Fee Modal */}
+      <Modal open={!!collectingLapseFee} onClose={() => setCollectingLapseFee(null)} title="Collect Lapse Interest">
+        {collectingLapseFee && (
+          <div className="flex flex-col gap-4">
+            <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 flex flex-col gap-2 text-sm">
+              <div className="flex justify-between">
+                <span className="text-gray-500">Amount</span>
+                <span className="font-semibold text-gray-900">{formatPeso(collectingLapseFee.amount_due)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">Type</span>
+                <span className="font-medium text-yellow-700">Unpaid Lapse Interest</span>
+              </div>
+            </div>
+            <p className="text-sm text-center text-gray-500">Confirm collection of lapse interest?</p>
+            <div className="flex gap-3">
+              <Button variant="outline" size="full" onClick={() => setCollectingLapseFee(null)}>Cancel</Button>
+              <Button size="full" onClick={handleCollectLapseFee} disabled={collectLapseFee.isPending}>
+                {collectLapseFee.isPending ? 'Collecting...' : 'Confirm'}
+              </Button>
+            </div>
+          </div>
+        )}
+      </Modal>
 
       {/* Edit Loan Modal */}
       <Modal open={editLoan} onClose={() => setEditLoan(false)} title="Edit Loan">
