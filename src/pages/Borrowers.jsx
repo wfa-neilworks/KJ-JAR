@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { UserPlus, ChevronRight, UserCheck, UserX } from 'lucide-react'
+import { UserPlus, ChevronRight, UserCheck, UserX, Search } from 'lucide-react'
 import PageWrapper from '@/components/layout/PageWrapper'
 import Modal from '@/components/ui/Modal'
 import Button from '@/components/ui/Button'
@@ -59,8 +59,11 @@ export default function Borrowers() {
   const navigate = useNavigate()
   const [tab, setTab] = useState('active')
   const [showForm, setShowForm] = useState(false)
+  const [search, setSearch] = useState('')
 
-  const filtered = borrowers.filter((b) => (tab === 'active' ? b.is_active : !b.is_active))
+  const filtered = borrowers
+    .filter((b) => (tab === 'active' ? b.is_active : !b.is_active))
+    .filter((b) => b.name.toLowerCase().includes(search.toLowerCase()) || b.mobile.includes(search))
 
   const handleDeactivate = async (borrower) => {
     const { data: loans } = await supabase
@@ -90,6 +93,17 @@ export default function Borrowers() {
         </Button>
       }
     >
+      <div className="relative mb-3">
+        <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+        <input
+          type="text"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search by name or mobile..."
+          className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-gray-200 bg-white text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+      </div>
+
       <div className="flex gap-2 mb-4">
         {['active', 'inactive'].map((t) => (
           <button

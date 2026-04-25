@@ -1,12 +1,12 @@
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Phone, MapPin, Link, Shield, Pencil } from 'lucide-react'
+import { ArrowLeft, Phone, MapPin, Link, Shield, Pencil, ChevronDown, ChevronUp } from 'lucide-react'
 import { format } from 'date-fns'
 import PageWrapper from '@/components/layout/PageWrapper'
 import Modal from '@/components/ui/Modal'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
-import { useBorrowers } from '@/hooks/useBorrowers'
+import { useBorrowers, useEditBorrower } from '@/hooks/useBorrowers'
 import { useLoansByBorrower, useEditLoan, useEditPayment } from '@/hooks/useLoans'
 import { useToast } from '@/components/ui/Toast'
 import { formatPeso } from '@/lib/loanUtils'
@@ -20,6 +20,44 @@ const collectionLabel = {
   complete:      'Complete',
   interest_only: 'Interest Only',
   partial:       'Partial',
+}
+
+function EditBorrowerModal({ borrower, onClose }) {
+  const toast = useToast()
+  const editBorrower = useEditBorrower()
+  const [form, setForm] = useState({
+    name: borrower.name,
+    mobile: borrower.mobile,
+    address: borrower.address,
+    facebook: borrower.facebook || '',
+    guarantor: borrower.guarantor || '',
+  })
+
+  const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }))
+
+  const submit = async (e) => {
+    e.preventDefault()
+    try {
+      await editBorrower.mutateAsync({ id: borrower.id, ...form })
+      toast({ message: 'Borrower updated', type: 'success' })
+      onClose()
+    } catch {
+      toast({ message: 'Failed to update borrower', type: 'error' })
+    }
+  }
+
+  return (
+    <form onSubmit={submit} className="flex flex-col gap-4">
+      <Input label="Full Name *" value={form.name} onChange={set('name')} />
+      <Input label="Mobile Number *" value={form.mobile} onChange={set('mobile')} />
+      <Input label="Address *" value={form.address} onChange={set('address')} />
+      <Input label="Facebook" value={form.facebook} onChange={set('facebook')} />
+      <Input label="Guarantor" value={form.guarantor} onChange={set('guarantor')} />
+      <Button type="submit" size="full" disabled={editBorrower.isPending}>
+        {editBorrower.isPending ? 'Saving...' : 'Save Changes'}
+      </Button>
+    </form>
+  )
 }
 
 function EditLoanModal({ loan, onClose }) {
@@ -190,90 +228,106 @@ function EditPaymentModal({ payment, loan, onClose }) {
 }
 
 function LoanCard({ loan }) {
+  const [expanded, setExpanded] = useState(false)
   const [editLoan, setEditLoan] = useState(false)
   const [editPayment, setEditPayment] = useState(null)
 
+  const paidCount = loan.payments?.filter((p) => p.paid_at).length || 0
+  const totalCount = loan.payments?.length || 0
+
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-4 flex flex-col gap-3">
-      {/* Loan header */}
-      <div className="flex items-start justify-between">
-        <div>
-          <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
-            loan.type === 'weekly' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'
-          }`}>
-            {loan.type.charAt(0).toUpperCase() + loan.type.slice(1)}
-          </span>
-          <p className="mt-1.5 text-lg font-semibold text-gray-900">{formatPeso(loan.principal)}</p>
-          <p className="text-sm text-gray-500">
-            Total due: <span className="font-medium text-gray-700">{formatPeso(loan.total_due)}</span>
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className={`text-xs font-medium px-2 py-1 rounded-full ${
-            loan.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
-          }`}>
-            {loan.status}
-          </span>
-          <button
-            onClick={() => setEditLoan(true)}
-            className="p-1.5 rounded-full hover:bg-gray-100 text-gray-400 hover:text-gray-700"
-            title="Edit loan"
-          >
-            <Pencil size={15} />
-          </button>
-        </div>
-      </div>
-
-      <div className="text-xs text-gray-500 flex gap-3">
-        <span>Loan date: {format(new Date(loan.loan_date), 'MMM d, yyyy')}</span>
-        <span>Interest: {loan.interest_rate}%</span>
-      </div>
-
-      {/* Payment trail */}
-      {loan.payments && loan.payments.length > 0 && (
-        <div className="flex flex-col gap-1.5">
-          <p className="text-xs font-medium text-gray-600 uppercase tracking-wide">Payments</p>
-          {loan.payments.map((p) => (
-            <div key={p.id} className={`flex flex-col gap-1 text-sm py-2 px-3 rounded-lg ${
-              p.paid_at ? 'bg-green-50' : 'bg-gray-50'
+    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+      {/* Collapsed header — always visible */}
+      <button
+        className="w-full px-4 py-3 flex items-center gap-3 text-left hover:bg-gray-50 transition-colors"
+        onClick={() => setExpanded((v) => !v)}
+      >
+        <div className="flex-1 flex flex-col gap-1">
+          <div className="flex items-center gap-2">
+            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+              loan.type === 'weekly' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'
             }`}>
-              <div className="flex items-center justify-between">
-                <span className="text-gray-600">
-                  {loan.type === 'weekly' ? `Week ${p.week_number}` : `Payment #${p.week_number}`}
-                  {' — '}
-                  {p.paid_at
-                    ? format(new Date(p.paid_at), 'MMM d, yyyy h:mm a')
-                    : `Due ${format(new Date(p.due_date), 'MMM d, yyyy')}`}
-                </span>
-                <div className="flex items-center gap-2">
-                  <span className={`font-semibold ${p.paid_at ? 'text-green-600' : 'text-gray-800'}`}>
-                    {p.paid_at ? formatPeso(p.amount_paid ?? p.amount_due) : formatPeso(p.amount_due)}
-                  </span>
-                  <button
-                    onClick={() => setEditPayment(p)}
-                    className="p-1 rounded-full hover:bg-white text-gray-400 hover:text-gray-700"
-                    title="Edit payment"
-                  >
-                    <Pencil size={13} />
-                  </button>
-                </div>
-              </div>
+              {loan.type.charAt(0).toUpperCase() + loan.type.slice(1)}
+            </span>
+            <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+              loan.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
+            }`}>
+              {loan.status}
+            </span>
+          </div>
+          <div className="flex items-baseline gap-3 mt-0.5">
+            <span className="font-semibold text-gray-900">{formatPeso(loan.principal)}</span>
+            <span className="text-xs text-gray-400">{loan.interest_rate}% interest</span>
+            <span className="text-xs text-gray-400">{format(new Date(loan.loan_date), 'MMM d, yyyy')}</span>
+          </div>
+          {loan.type === 'weekly' && (
+            <p className="text-xs text-gray-400">{paidCount} of {totalCount} payments collected</p>
+          )}
+        </div>
+        {expanded ? <ChevronUp size={16} className="text-gray-400 shrink-0" /> : <ChevronDown size={16} className="text-gray-400 shrink-0" />}
+      </button>
 
-              {/* Collection type badge */}
-              {p.paid_at && (
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-                    collectionBadge[p.collection_type] || collectionBadge.complete
-                  }`}>
-                    {collectionLabel[p.collection_type] || 'Complete'}
-                  </span>
-                  {p.note && (
-                    <span className="text-xs text-gray-500 italic">"{p.note}"</span>
+      {/* Expanded details */}
+      {expanded && (
+        <div className="px-4 pb-4 flex flex-col gap-3 border-t border-gray-100">
+          <div className="flex items-center justify-between pt-3">
+            <p className="text-sm text-gray-500">
+              Total due: <span className="font-medium text-gray-700">{formatPeso(loan.total_due)}</span>
+            </p>
+            <button
+              onClick={(e) => { e.stopPropagation(); setEditLoan(true) }}
+              className="p-1.5 rounded-full hover:bg-gray-100 text-gray-400 hover:text-gray-700 flex items-center gap-1 text-xs"
+              title="Edit loan"
+            >
+              <Pencil size={13} /> Edit loan
+            </button>
+          </div>
+
+          {/* Payment trail */}
+          {loan.payments && loan.payments.length > 0 && (
+            <div className="flex flex-col gap-1.5">
+              <p className="text-xs font-medium text-gray-600 uppercase tracking-wide">Payments</p>
+              {loan.payments.map((p) => (
+                <div key={p.id} className={`flex flex-col gap-1 text-sm py-2 px-3 rounded-lg ${
+                  p.paid_at ? 'bg-green-50' : 'bg-gray-50'
+                }`}>
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-600">
+                      {loan.type === 'weekly' ? `Week ${p.week_number}` : `Payment #${p.week_number}`}
+                      {' — '}
+                      {p.paid_at
+                        ? format(new Date(p.paid_at), 'MMM d, yyyy h:mm a')
+                        : `Due ${format(new Date(p.due_date), 'MMM d, yyyy')}`}
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className={`font-semibold ${p.paid_at ? 'text-green-600' : 'text-gray-800'}`}>
+                        {p.paid_at ? formatPeso(p.amount_paid ?? p.amount_due) : formatPeso(p.amount_due)}
+                      </span>
+                      <button
+                        onClick={() => setEditPayment(p)}
+                        className="p-1 rounded-full hover:bg-white text-gray-400 hover:text-gray-700"
+                        title="Edit payment"
+                      >
+                        <Pencil size={13} />
+                      </button>
+                    </div>
+                  </div>
+                  {p.paid_at && (
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                        collectionBadge[p.collection_type] || collectionBadge.complete
+                      }`}>
+                        {collectionLabel[p.collection_type] || 'Complete'}
+                      </span>
+                      {p.note && (
+                        <span className="text-xs text-gray-500 italic">"{p.note}"</span>
+                      )}
+                    </div>
                   )}
                 </div>
-              )}
+              ))}
             </div>
-          ))}
+          )}
         </div>
       )}
 
@@ -301,6 +355,7 @@ export default function BorrowerDetail() {
   const navigate = useNavigate()
   const { data: borrowers = [] } = useBorrowers()
   const { data: loans = [], isLoading } = useLoansByBorrower(id)
+  const [editBorrower, setEditBorrower] = useState(false)
 
   const borrower = borrowers.find((b) => b.id === id)
 
@@ -320,26 +375,37 @@ export default function BorrowerDetail() {
       }
     >
       <div className="bg-white rounded-xl border border-gray-200 p-4 mb-4 flex flex-col gap-2">
-        <div className="flex items-center gap-2 text-sm text-gray-600">
-          <Phone size={15} className="text-gray-400" />
-          {borrower.mobile}
-        </div>
-        <div className="flex items-start gap-2 text-sm text-gray-600">
-          <MapPin size={15} className="text-gray-400 mt-0.5 shrink-0" />
-          {borrower.address}
-        </div>
-        {borrower.facebook && (
-          <div className="flex items-center gap-2 text-sm text-gray-600">
-            <Link size={15} className="text-gray-400" />
-            {borrower.facebook}
+        <div className="flex items-start justify-between">
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center gap-2 text-sm text-gray-600">
+              <Phone size={15} className="text-gray-400" />
+              {borrower.mobile}
+            </div>
+            <div className="flex items-start gap-2 text-sm text-gray-600">
+              <MapPin size={15} className="text-gray-400 mt-0.5 shrink-0" />
+              {borrower.address}
+            </div>
+            {borrower.facebook && (
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <Link size={15} className="text-gray-400" />
+                {borrower.facebook}
+              </div>
+            )}
+            {borrower.guarantor && (
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <Shield size={15} className="text-gray-400" />
+                Guarantor: {borrower.guarantor}
+              </div>
+            )}
           </div>
-        )}
-        {borrower.guarantor && (
-          <div className="flex items-center gap-2 text-sm text-gray-600">
-            <Shield size={15} className="text-gray-400" />
-            Guarantor: {borrower.guarantor}
-          </div>
-        )}
+          <button
+            onClick={() => setEditBorrower(true)}
+            className="p-1.5 rounded-full hover:bg-gray-100 text-gray-400 hover:text-gray-700"
+            title="Edit borrower"
+          >
+            <Pencil size={15} />
+          </button>
+        </div>
       </div>
 
       <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-2">
@@ -355,6 +421,10 @@ export default function BorrowerDetail() {
           {loans.map((loan) => <LoanCard key={loan.id} loan={loan} />)}
         </div>
       )}
+
+      <Modal open={editBorrower} onClose={() => setEditBorrower(false)} title="Edit Borrower">
+        <EditBorrowerModal borrower={borrower} onClose={() => setEditBorrower(false)} />
+      </Modal>
     </PageWrapper>
   )
 }

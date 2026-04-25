@@ -37,3 +37,17 @@ export function useSetBorrowerActive() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['borrowers'] }),
   })
 }
+
+export function useEditBorrower() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, name, mobile, address, facebook, guarantor }) => {
+      const { error } = await supabase
+        .from('borrowers')
+        .update({ name, mobile, address, facebook, guarantor })
+        .eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['borrowers'] }),
+  })
+}
