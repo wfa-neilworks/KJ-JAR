@@ -4,6 +4,7 @@ import { CheckCircle } from 'lucide-react'
 import PageWrapper from '@/components/layout/PageWrapper'
 import Modal from '@/components/ui/Modal'
 import Button from '@/components/ui/Button'
+import Input from '@/components/ui/Input'
 import FAB from '@/components/layout/FAB'
 import { useUpcomingPayments, useMarkPaid } from '@/hooks/usePayments'
 import { useToast } from '@/components/ui/Toast'
@@ -52,20 +53,39 @@ function PaymentItem({ payment, onPay }) {
   )
 }
 
-export default function Home() {
-  const { data: payments = [], isLoading } = useUpcomingPayments()
-  const markPaid = useMarkPaid()
+function CollectionModal({ selected, payments, onClose, markPaid }) {
   const toast = useToast()
-  const [selected, setSelected] = useState(null)
+  const [step, setStep] = useState('choose') // 'choose' | 'partial'
+  const [partialAmount, setPartialAmount] = useState('')
 
-  const sorted = [...payments].sort((a, b) => {
-    const da = getDayDiff(a.due_date)
-    const db = getDayDiff(b.due_date)
-    return da - db
-  })
+  if (!selected) return null
 
-  const handleConfirmPay = async () => {
-    if (!selected) return
+  const loan = selected.loan
+  const isMonthly = loan?.type === 'monthly'
+  const principal = Number(loan?.principal || 0)
+  const rate = Number(loan?.interest_rate || 0)
+  const interest = principal * (rate / 100)
+  const amountDue = Number(selected.amount_due)
+
+  const handleCollect = async (collectionType) => {
+    let amountPaid, rolloverAmount
+
+    if (collectionType === 'complete') {
+      amountPaid = amountDue
+      rolloverAmount = null
+    } else if (collectionType === 'interest_only') {
+      amountPaid = interest
+      rolloverAmount = principal
+    } else if (collectionType === 'partial') {
+      const partial = parseFloat(partialAmount)
+      if (!partial || partial <= 0 || partial >= amountDue) {
+        toast({ message: `Enter an amount between ₱1 and ${formatPeso(amountDue - 1)}`, type: 'error' })
+        return
+      }
+      amountPaid = partial
+      rolloverAmount = amountDue - partial
+    }
+
     try {
       const loanPayments = payments.filter((p) => p.loan_id === selected.loan_id)
       const unpaid = loanPayments.filter((p) => !p.paid_at && p.id !== selected.id)
@@ -73,13 +93,159 @@ export default function Home() {
         paymentId: selected.id,
         loanId: selected.loan_id,
         isLastPayment: unpaid.length === 0,
+        collectionType,
+        amountPaid,
+        rolloverAmount,
+        interestRate: rate,
       })
-      toast({ message: 'Payment marked as collected!', type: 'success' })
-      setSelected(null)
+      toast({ message: 'Payment recorded!', type: 'success' })
+      onClose()
     } catch {
       toast({ message: 'Failed to record payment', type: 'error' })
     }
   }
+
+  return (
+    <>
+      {/* Summary card always visible */}
+      <div className="bg-gray-50 rounded-xl p-4 flex flex-col gap-2 mb-4">
+        <div className="flex justify-between text-sm">
+          <span className="text-gray-500">Borrower</span>
+          <span className="font-medium text-gray-900">{loan?.borrower?.name}</span>
+        </div>
+        <div className="flex justify-between text-sm">
+          <span className="text-gray-500">Amount Due</span>
+          <span className="font-semibold text-gray-900">{formatPeso(amountDue)}</span>
+        </div>
+        <div className="flex justify-between text-sm">
+          <span className="text-gray-500">Due Date</span>
+          <span className="text-gray-700">{format(new Date(selected.due_date), 'MMM d, yyyy')}</span>
+        </div>
+        {isMonthly && (
+          <>
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-500">Capital</span>
+              <span className="text-gray-700">{formatPeso(principal)}</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-500">Interest ({rate}%)</span>
+              <span className="text-gray-700">{formatPeso(interest)}</span>
+            </div>
+          </>
+        )}
+      </div>
+
+      {step === 'choose' && (
+        <div className="flex flex-col gap-3">
+          {/* Option 1 */}
+          <button
+            onClick={() => handleCollect('complete')}
+            disabled={markPaid.isPending}
+            className="w-full text-left rounded-xl border-2 border-green-200 bg-green-50 px-4 py-3 hover:border-green-400 transition-colors"
+          >
+            <p className="font-semibold text-green-700">Complete Collection</p>
+            <p className="text-sm text-green-600 mt-0.5">
+              Collect full {formatPeso(amountDue)} — loan cleared
+            </p>
+          </button>
+
+          {/* Option 2 — monthly only */}
+          {isMonthly && (
+            <button
+              onClick={() => handleCollect('interest_only')}
+              disabled={markPaid.isPending}
+              className="w-full text-left rounded-xl border-2 border-blue-200 bg-blue-50 px-4 py-3 hover:border-blue-400 transition-colors"
+            >
+              <p className="font-semibold text-blue-700">Interest Only</p>
+              <p className="text-sm text-blue-600 mt-0.5">
+                Collect {formatPeso(interest)} now — capital {formatPeso(principal)} rolls over next month
+              </p>
+            </button>
+          )}
+
+          {/* Option 3 — monthly only */}
+          {isMonthly && (
+            <button
+              onClick={() => setStep('partial')}
+              className="w-full text-left rounded-xl border-2 border-orange-200 bg-orange-50 px-4 py-3 hover:border-orange-400 transition-colors"
+            >
+              <p className="font-semibold text-orange-700">Partial Collection</p>
+              <p className="text-sm text-orange-600 mt-0.5">
+                Collect a partial amount — balance + interest rolls over next month
+              </p>
+            </button>
+          )}
+
+          <Button variant="ghost" size="full" onClick={onClose}>
+            Cancel
+          </Button>
+        </div>
+      )}
+
+      {step === 'partial' && (
+        <div className="flex flex-col gap-4">
+          <div className="rounded-xl border border-orange-200 bg-orange-50 px-4 py-3">
+            <p className="text-sm font-semibold text-orange-700 mb-1">Partial Collection</p>
+            <p className="text-xs text-orange-600">
+              Enter how much was collected. The remaining balance will carry a {rate}% interest next month.
+            </p>
+          </div>
+
+          <Input
+            label="Amount Collected (PHP)"
+            type="number"
+            min="1"
+            step="0.01"
+            value={partialAmount}
+            onChange={(e) => setPartialAmount(e.target.value)}
+            placeholder="e.g. 7000"
+          />
+
+          {partialAmount && parseFloat(partialAmount) > 0 && parseFloat(partialAmount) < amountDue && (
+            <div className="bg-gray-50 rounded-xl p-3 flex flex-col gap-1.5 text-sm">
+              <div className="flex justify-between">
+                <span className="text-gray-500">Collected now</span>
+                <span className="font-semibold text-gray-900">{formatPeso(parseFloat(partialAmount))}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">Remaining balance</span>
+                <span className="font-medium text-gray-700">{formatPeso(amountDue - parseFloat(partialAmount))}</span>
+              </div>
+              <div className="flex justify-between border-t border-gray-200 pt-1.5">
+                <span className="text-gray-500">Due next month</span>
+                <span className="font-bold text-orange-600">
+                  {formatPeso((amountDue - parseFloat(partialAmount)) * (1 + rate / 100))}
+                </span>
+              </div>
+            </div>
+          )}
+
+          <Button
+            size="full"
+            onClick={() => handleCollect('partial')}
+            disabled={markPaid.isPending}
+          >
+            {markPaid.isPending ? 'Recording...' : 'Confirm Partial Collection'}
+          </Button>
+          <Button variant="ghost" size="full" onClick={() => setStep('choose')}>
+            Back
+          </Button>
+        </div>
+      )}
+    </>
+  )
+}
+
+export default function Home() {
+  const { data: payments = [], isLoading } = useUpcomingPayments()
+  const markPaid = useMarkPaid()
+  const [selected, setSelected] = useState(null)
+
+  const sorted = [...payments].sort((a, b) => {
+    const da = getDayDiff(a.due_date)
+    const db = getDayDiff(b.due_date)
+    return da - db
+  })
 
   return (
     <PageWrapper title="JAR — Collections">
@@ -102,36 +268,14 @@ export default function Home() {
       <Modal
         open={!!selected}
         onClose={() => setSelected(null)}
-        title="Confirm Collection"
+        title="Record Collection"
       >
-        {selected && (
-          <div className="flex flex-col gap-4">
-            <div className="bg-gray-50 rounded-xl p-4 flex flex-col gap-2">
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-500">Borrower</span>
-                <span className="font-medium text-gray-900">{selected.loan?.borrower?.name}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-500">Amount</span>
-                <span className="font-semibold text-gray-900">{formatPeso(selected.amount_due)}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-500">Due Date</span>
-                <span className="text-gray-700">{format(new Date(selected.due_date), 'MMMM d, yyyy')}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-500">Type</span>
-                <span className="capitalize text-gray-700">{selected.loan?.type}</span>
-              </div>
-            </div>
-            <Button size="full" onClick={handleConfirmPay} disabled={markPaid.isPending}>
-              {markPaid.isPending ? 'Recording...' : 'Mark as Collected'}
-            </Button>
-            <Button size="full" variant="ghost" onClick={() => setSelected(null)}>
-              Cancel
-            </Button>
-          </div>
-        )}
+        <CollectionModal
+          selected={selected}
+          payments={payments}
+          onClose={() => setSelected(null)}
+          markPaid={markPaid}
+        />
       </Modal>
 
       <FAB />

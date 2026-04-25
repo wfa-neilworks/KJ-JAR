@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
-import { format, addDays, startOfDay } from 'date-fns'
+import { format, addDays, addMonths, startOfDay } from 'date-fns'
 
 export function useUpcomingPayments() {
   return useQuery({
@@ -11,7 +11,7 @@ export function useUpcomingPayments() {
 
       const { data, error } = await supabase
         .from('payments')
-        .select('*, loan:loans(id, type, principal, borrower:borrowers(id, name, mobile))')
+        .select('*, loan:loans(id, type, principal, interest_rate, total_due, borrower:borrowers(id, name, mobile))')
         .is('paid_at', null)
         .lte('due_date', dayAfterTomorrow)
         .order('due_date', { ascending: true })
@@ -26,15 +26,44 @@ export function useUpcomingPayments() {
 export function useMarkPaid() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async ({ paymentId, loanId, isLastPayment }) => {
+    mutationFn: async ({ paymentId, loanId, isLastPayment, collectionType, amountPaid, rolloverAmount, interestRate }) => {
       const now = new Date().toISOString()
+
+      // Mark current payment as paid with actual amount and type
       const { error } = await supabase
         .from('payments')
-        .update({ paid_at: now })
+        .update({
+          paid_at: now,
+          amount_paid: amountPaid,
+          collection_type: collectionType,
+        })
         .eq('id', paymentId)
       if (error) throw error
 
-      if (isLastPayment) {
+      // For interest_only and partial: add a rollover payment row next month
+      if (collectionType === 'interest_only' || collectionType === 'partial') {
+        const newCapital = rolloverAmount
+        const newTotalDue = newCapital * (1 + interestRate / 100)
+        const newDueDate = format(addMonths(new Date(), 1), 'yyyy-MM-dd')
+
+        // Get current max week_number for this loan to increment
+        const { data: existingPayments } = await supabase
+          .from('payments')
+          .select('week_number')
+          .eq('loan_id', loanId)
+          .order('week_number', { ascending: false })
+          .limit(1)
+        const nextWeekNumber = (existingPayments?.[0]?.week_number || 1) + 1
+
+        const { error: rollErr } = await supabase.from('payments').insert({
+          loan_id: loanId,
+          week_number: nextWeekNumber,
+          amount_due: newTotalDue,
+          due_date: newDueDate,
+        })
+        if (rollErr) throw rollErr
+      } else if (isLastPayment) {
+        // Complete collection and no more payments — close the loan
         const { error: loanErr } = await supabase
           .from('loans')
           .update({ status: 'completed' })
