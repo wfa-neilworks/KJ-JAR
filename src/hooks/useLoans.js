@@ -45,7 +45,10 @@ export function useEditLoan() {
         .eq('id', id)
       if (error) throw error
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['loans'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['loans'] })
+      qc.invalidateQueries({ queryKey: ['dashboard-stats'] })
+    },
   })
 }
 
@@ -115,7 +118,11 @@ export function useEditPayment() {
         }
       }
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['loans'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['loans'] })
+      qc.invalidateQueries({ queryKey: ['payments'] })
+      qc.invalidateQueries({ queryKey: ['dashboard-stats'] })
+    },
   })
 }
 

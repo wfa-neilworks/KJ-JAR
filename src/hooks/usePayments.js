@@ -75,6 +75,7 @@ export function useMarkPaid() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['payments'] })
       qc.invalidateQueries({ queryKey: ['loans'] })
+      qc.invalidateQueries({ queryKey: ['dashboard-stats'] })
     },
   })
 }
