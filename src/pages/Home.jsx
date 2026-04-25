@@ -53,11 +53,18 @@ function PaymentItem({ payment, onPay }) {
   )
 }
 
+const confirmLabels = {
+  complete:      { title: 'Complete Collection', color: 'text-green-700', bg: 'bg-green-50 border-green-200' },
+  interest_only: { title: 'Interest Only',       color: 'text-blue-700',  bg: 'bg-blue-50 border-blue-200'  },
+  partial:       { title: 'Partial Collection',  color: 'text-orange-700',bg: 'bg-orange-50 border-orange-200' },
+}
+
 function CollectionModal({ selected, payments, onClose, markPaid }) {
   const toast = useToast()
-  const [step, setStep] = useState('choose') // 'choose' | 'partial'
+  const [step, setStep] = useState('choose') // 'choose' | 'partial' | 'confirm'
   const [partialAmount, setPartialAmount] = useState('')
   const [note, setNote] = useState('')
+  const [pendingType, setPendingType] = useState(null)
 
   if (!selected) return null
 
@@ -68,7 +75,20 @@ function CollectionModal({ selected, payments, onClose, markPaid }) {
   const interest = principal * (rate / 100)
   const amountDue = Number(selected.amount_due)
 
-  const handleCollect = async (collectionType) => {
+  const requestConfirm = (collectionType) => {
+    if (collectionType === 'partial') {
+      const partial = parseFloat(partialAmount)
+      if (!partial || partial <= 0 || partial >= amountDue) {
+        toast({ message: `Enter an amount between ₱1 and ${formatPeso(amountDue - 1)}`, type: 'error' })
+        return
+      }
+    }
+    setPendingType(collectionType)
+    setStep('confirm')
+  }
+
+  const handleCollect = async () => {
+    const collectionType = pendingType
     let amountPaid, rolloverAmount
 
     if (collectionType === 'complete') {
@@ -78,13 +98,8 @@ function CollectionModal({ selected, payments, onClose, markPaid }) {
       amountPaid = interest
       rolloverAmount = principal
     } else if (collectionType === 'partial') {
-      const partial = parseFloat(partialAmount)
-      if (!partial || partial <= 0 || partial >= amountDue) {
-        toast({ message: `Enter an amount between ₱1 and ${formatPeso(amountDue - 1)}`, type: 'error' })
-        return
-      }
-      amountPaid = partial
-      rolloverAmount = amountDue - partial
+      amountPaid = parseFloat(partialAmount)
+      rolloverAmount = amountDue - amountPaid
     }
 
     try {
@@ -139,10 +154,8 @@ function CollectionModal({ selected, payments, onClose, markPaid }) {
 
       {step === 'choose' && (
         <div className="flex flex-col gap-3">
-          {/* Option 1 */}
           <button
-            onClick={() => handleCollect('complete')}
-            disabled={markPaid.isPending}
+            onClick={() => requestConfirm('complete')}
             className="w-full text-left rounded-xl border-2 border-green-200 bg-green-50 px-4 py-3 hover:border-green-400 transition-colors"
           >
             <p className="font-semibold text-green-700">Complete Collection</p>
@@ -151,11 +164,9 @@ function CollectionModal({ selected, payments, onClose, markPaid }) {
             </p>
           </button>
 
-          {/* Option 2 — monthly only */}
           {isMonthly && (
             <button
-              onClick={() => handleCollect('interest_only')}
-              disabled={markPaid.isPending}
+              onClick={() => requestConfirm('interest_only')}
               className="w-full text-left rounded-xl border-2 border-blue-200 bg-blue-50 px-4 py-3 hover:border-blue-400 transition-colors"
             >
               <p className="font-semibold text-blue-700">Interest Only</p>
@@ -165,7 +176,6 @@ function CollectionModal({ selected, payments, onClose, markPaid }) {
             </button>
           )}
 
-          {/* Option 3 — monthly only */}
           {isMonthly && (
             <button
               onClick={() => setStep('partial')}
@@ -178,7 +188,6 @@ function CollectionModal({ selected, payments, onClose, markPaid }) {
             </button>
           )}
 
-          {/* Note */}
           <div className="flex flex-col gap-1">
             <label className="text-sm font-medium text-gray-700">Note <span className="text-gray-400 font-normal">(optional)</span></label>
             <textarea
@@ -190,9 +199,7 @@ function CollectionModal({ selected, payments, onClose, markPaid }) {
             />
           </div>
 
-          <Button variant="ghost" size="full" onClick={onClose}>
-            Cancel
-          </Button>
+          <Button variant="ghost" size="full" onClick={onClose}>Cancel</Button>
         </div>
       )}
 
@@ -234,7 +241,6 @@ function CollectionModal({ selected, payments, onClose, markPaid }) {
             </div>
           )}
 
-          {/* Note on partial step too */}
           <div className="flex flex-col gap-1">
             <label className="text-sm font-medium text-gray-700">Note <span className="text-gray-400 font-normal">(optional)</span></label>
             <textarea
@@ -246,16 +252,45 @@ function CollectionModal({ selected, payments, onClose, markPaid }) {
             />
           </div>
 
-          <Button
-            size="full"
-            onClick={() => handleCollect('partial')}
-            disabled={markPaid.isPending}
-          >
-            {markPaid.isPending ? 'Recording...' : 'Confirm Partial Collection'}
+          <Button size="full" onClick={() => requestConfirm('partial')}>
+            Next: Confirm
           </Button>
-          <Button variant="ghost" size="full" onClick={() => setStep('choose')}>
-            Back
-          </Button>
+          <Button variant="ghost" size="full" onClick={() => setStep('choose')}>Back</Button>
+        </div>
+      )}
+
+      {step === 'confirm' && pendingType && (
+        <div className="flex flex-col gap-4">
+          <div className={`rounded-xl border-2 px-4 py-4 text-center ${confirmLabels[pendingType].bg}`}>
+            <p className={`text-base font-bold mb-1 ${confirmLabels[pendingType].color}`}>
+              {confirmLabels[pendingType].title}
+            </p>
+            <p className="text-sm text-gray-600">
+              {pendingType === 'complete' && `Collect ${formatPeso(amountDue)} — this loan will be marked complete.`}
+              {pendingType === 'interest_only' && `Collect ${formatPeso(interest)} interest. Capital ${formatPeso(principal)} rolls over next month.`}
+              {pendingType === 'partial' && `Collect ${formatPeso(parseFloat(partialAmount))}. Remaining ${formatPeso(amountDue - parseFloat(partialAmount))} + ${rate}% interest due next month.`}
+            </p>
+            {note && <p className="text-xs text-gray-400 mt-2 italic">Note: "{note}"</p>}
+          </div>
+
+          <p className="text-sm text-center text-gray-500">Are you sure you want to proceed?</p>
+
+          <div className="flex gap-3">
+            <Button
+              variant="outline"
+              size="full"
+              onClick={() => setStep(pendingType === 'partial' ? 'partial' : 'choose')}
+            >
+              No, Go Back
+            </Button>
+            <Button
+              size="full"
+              onClick={handleCollect}
+              disabled={markPaid.isPending}
+            >
+              {markPaid.isPending ? 'Recording...' : 'Yes, Confirm'}
+            </Button>
+          </div>
         </div>
       )}
     </>
