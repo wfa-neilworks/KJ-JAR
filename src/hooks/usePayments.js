@@ -168,6 +168,7 @@ export function useDashboardStats(type) {
       if (lErr) throw lErr
 
       const activeCount = loans.length
+      console.log('[stats] type=', type, 'loans=', JSON.stringify(loans))
       if (activeCount === 0) {
         // Still need profit even if no active loans
         const startOfMonth = format(new Date(new Date().getFullYear(), new Date().getMonth(), 1), 'yyyy-MM-dd')
