@@ -155,12 +155,16 @@ export function useCollectLapseFee() {
 function interestPortion(payment) {
   const { loan } = payment
   if (!loan) return 0
+
+  // Lapsed original row (amount_paid=0) — no profit, borrower didn't pay anything
+  if (payment.collection_type === 'lapsed') return 0
+
+  // Lapse fee row — profit only when actually collected (paid_at set)
+  if (payment.is_lapse_fee) return Number(payment.amount_due)
+
   const principal = Number(loan.principal)
   const rate = Number(loan.interest_rate)
   const interest = principal * (rate / 100)
-
-  // Lapse fee row = just the interest amount, counts as profit when collected
-  if (payment.is_lapse_fee) return Number(payment.amount_paid || payment.amount_due)
 
   if (loan.type === 'monthly') return interest
 
