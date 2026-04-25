@@ -40,19 +40,34 @@ function LoanCard({ loan }) {
         <div className="flex flex-col gap-1.5">
           <p className="text-xs font-medium text-gray-600 uppercase tracking-wide">Payments</p>
           {loan.payments.map((p) => (
-            <div key={p.id} className={`flex items-center justify-between text-sm py-1.5 px-2 rounded-lg ${
+            <div key={p.id} className={`flex flex-col gap-1 text-sm py-2 px-3 rounded-lg ${
               p.paid_at ? 'bg-green-50' : 'bg-gray-50'
             }`}>
-              <span className="text-gray-600">
-                {loan.type === 'weekly' ? `Week ${p.week_number}` : 'Payment'}
-                {' — '}
-                {p.paid_at
-                  ? format(new Date(p.paid_at), 'MMM d, yyyy h:mm a')
-                  : `Due ${format(new Date(p.due_date), 'MMM d, yyyy')}`}
-              </span>
-              <span className={`font-medium ${p.paid_at ? 'text-green-600' : 'text-gray-800'}`}>
-                {p.paid_at ? '✓ Collected' : formatPeso(p.amount_due)}
-              </span>
+              <div className="flex items-center justify-between">
+                <span className="text-gray-600">
+                  {loan.type === 'weekly' ? `Week ${p.week_number}` : `Payment #${p.week_number}`}
+                  {' — '}
+                  {p.paid_at
+                    ? format(new Date(p.paid_at), 'MMM d, yyyy h:mm a')
+                    : `Due ${format(new Date(p.due_date), 'MMM d, yyyy')}`}
+                </span>
+                <span className={`font-semibold ${p.paid_at ? 'text-green-600' : 'text-gray-800'}`}>
+                  {p.paid_at ? formatPeso(p.amount_paid ?? p.amount_due) : formatPeso(p.amount_due)}
+                </span>
+              </div>
+              {p.paid_at && (
+                <div className="flex items-center gap-2">
+                  {p.collection_type === 'interest_only' && (
+                    <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">Interest Only</span>
+                  )}
+                  {p.collection_type === 'partial' && (
+                    <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-orange-100 text-orange-700">Partial</span>
+                  )}
+                  {(p.collection_type === 'complete' || !p.collection_type) && (
+                    <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-green-100 text-green-700">Complete</span>
+                  )}
+                </div>
+              )}
             </div>
           ))}
         </div>
