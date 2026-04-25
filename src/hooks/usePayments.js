@@ -168,7 +168,6 @@ export function useDashboardStats(type) {
       if (lErr) throw lErr
 
       const activeCount = loans.length
-      console.log('[stats] type=', type, 'loans=', JSON.stringify(loans))
       if (activeCount === 0) {
         // Still need profit even if no active loans
         const startOfMonth = format(new Date(new Date().getFullYear(), new Date().getMonth(), 1), 'yyyy-MM-dd')
@@ -180,10 +179,11 @@ export function useDashboardStats(type) {
       }
 
       const activeLoanIds = loans.map((l) => l.id)
-      const rateMap = {}
-      loans.forEach((l) => { rateMap[l.id] = Number(l.interest_rate) })
 
-      // Step 2: get all unpaid payment rows for those specific loan IDs
+      // Total Lent = sum of principal of active loans (never changes mid-loan)
+      const totalLent = loans.reduce((s, l) => s + Number(l.principal), 0)
+
+      // Outstanding = sum of all unpaid amount_due rows
       const { data: unpaidRows, error: uErr } = await supabase
         .from('payments')
         .select('loan_id, amount_due')
@@ -191,15 +191,7 @@ export function useDashboardStats(type) {
         .in('loan_id', activeLoanIds)
       if (uErr) throw uErr
 
-      // Outstanding = sum of all unpaid amount_due
       const outstanding = unpaidRows.reduce((s, p) => s + Number(p.amount_due), 0)
-
-      // Total Lent = capital portion of each unpaid row
-      // capital = amount_due / (1 + rate/100)
-      const totalLent = unpaidRows.reduce((s, p) => {
-        const rate = rateMap[p.loan_id] || 0
-        return s + Number(p.amount_due) / (1 + rate / 100)
-      }, 0)
 
       // Step 3: profit = interest on paid payments this month for this loan type
       const startOfMonth = format(new Date(new Date().getFullYear(), new Date().getMonth(), 1), 'yyyy-MM-dd')
