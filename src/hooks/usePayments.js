@@ -85,22 +85,44 @@ function interestPortion(payment) {
   if (!loan) return 0
   const principal = Number(loan.principal)
   const rate = Number(loan.interest_rate)
-  // Interest is always principal × rate — fixed regardless of partial payment
   const interest = principal * (rate / 100)
+
   if (loan.type === 'monthly') return interest
-  return interest / 6
+
+  // Weekly: profit is only counted on the LAST payment (week 6)
+  if (payment.is_last_payment) return interest
+  return 0
+}
+
+async function fetchPaidWithLastFlag(extraFilter) {
+  const { data, error } = await supabase
+    .from('payments')
+    .select('loan_id, week_number, paid_at, amount_due, amount_paid, collection_type, loan:loans(type, principal, interest_rate)')
+    .not('paid_at', 'is', null)
+  if (error) throw error
+
+  // For each loan, find the max week_number among all its payments (paid or not)
+  const { data: allRows } = await supabase
+    .from('payments')
+    .select('loan_id, week_number')
+  const maxWeek = {}
+  ;(allRows || []).forEach((r) => {
+    if (!maxWeek[r.loan_id] || r.week_number > maxWeek[r.loan_id]) {
+      maxWeek[r.loan_id] = r.week_number
+    }
+  })
+
+  return data.map((p) => ({
+    ...p,
+    is_last_payment: p.week_number === maxWeek[p.loan_id],
+  }))
 }
 
 export function useCollectedByMonth(type) {
   return useQuery({
     queryKey: ['payments', 'collected-by-month', type],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('payments')
-        .select('paid_at, amount_due, loan:loans(type, principal, interest_rate)')
-        .not('paid_at', 'is', null)
-
-      if (error) throw error
+      const data = await fetchPaidWithLastFlag()
 
       const filtered = type ? data.filter((p) => p.loan?.type === type) : data
 
@@ -154,27 +176,26 @@ export function useDashboardStats(type) {
       // Outstanding = sum of all unpaid amount_due
       const outstanding = unpaid.reduce((s, p) => s + Number(p.amount_due), 0)
 
-      // Total Lent = outstanding minus interest portion still owed
-      // i.e. just the remaining capital
+      // Total Lent = remaining capital only (no interest)
       const totalLent = unpaid.reduce((s, p) => {
         const rate = Number(p.loan?.interest_rate || 0)
         const amountDue = Number(p.amount_due)
-        // capital portion = amount_due / (1 + rate/100)
+        if (type === 'weekly') {
+          // Each weekly row = principal/6 capital + interest/6
+          // Capital portion = amountDue / (1 + rate/100)
+          return s + amountDue / (1 + rate / 100)
+        }
+        // Monthly: capital = amountDue / (1 + rate/100)
         return s + amountDue / (1 + rate / 100)
       }, 0)
 
       // Profit = interest portion of paid payments this month
       const startOfMonth = format(new Date(new Date().getFullYear(), new Date().getMonth(), 1), 'yyyy-MM-dd')
-      const { data: paidThisMonth, error: pErr } = await supabase
-        .from('payments')
-        .select('amount_due, amount_paid, collection_type, loan:loans(type, principal, interest_rate)')
-        .gte('paid_at', startOfMonth)
-        .not('paid_at', 'is', null)
-      if (pErr) throw pErr
-
-      const collected = paidThisMonth
-        .filter((p) => p.loan?.type === type)
-        .reduce((s, p) => s + interestPortion(p), 0)
+      const allPaidWithFlag = await fetchPaidWithLastFlag()
+      const paidThisMonth = allPaidWithFlag.filter((p) =>
+        p.paid_at >= startOfMonth && p.loan?.type === type
+      )
+      const collected = paidThisMonth.reduce((s, p) => s + interestPortion(p), 0)
 
       return { totalLent, outstanding, collected, activeCount }
     },
