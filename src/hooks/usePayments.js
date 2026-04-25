@@ -149,53 +149,53 @@ export function useDashboardStats(type) {
   return useQuery({
     queryKey: ['dashboard-stats', type],
     queryFn: async () => {
-      // Active loan count
+      // Step 1: get active loans of this type
       const { data: loans, error: lErr } = await supabase
         .from('loans')
-        .select('id, interest_rate')
+        .select('id, principal, interest_rate')
         .eq('type', type)
         .eq('status', 'active')
       if (lErr) throw lErr
-      const activeCount = loans.length
 
-      // Build a map of interest_rate per loan id
+      const activeCount = loans.length
+      if (activeCount === 0) {
+        // Still need profit even if no active loans
+        const startOfMonth = format(new Date(new Date().getFullYear(), new Date().getMonth(), 1), 'yyyy-MM-dd')
+        const allPaid = await fetchPaidWithLastFlag()
+        const collected = allPaid
+          .filter((p) => p.paid_at >= startOfMonth && p.loan?.type === type)
+          .reduce((s, p) => s + interestPortion(p), 0)
+        return { totalLent: 0, outstanding: 0, collected, activeCount: 0 }
+      }
+
+      const activeLoanIds = loans.map((l) => l.id)
       const rateMap = {}
       loans.forEach((l) => { rateMap[l.id] = Number(l.interest_rate) })
 
-      // Unpaid payment rows for active loans of this type
+      // Step 2: get all unpaid payment rows for those specific loan IDs
       const { data: unpaidRows, error: uErr } = await supabase
         .from('payments')
-        .select('loan_id, amount_due, loan:loans(type, status, interest_rate)')
+        .select('loan_id, amount_due')
         .is('paid_at', null)
-        .eq('loan.type', type)
-        .eq('loan.status', 'active')
+        .in('loan_id', activeLoanIds)
       if (uErr) throw uErr
 
-      const unpaid = unpaidRows.filter((p) => p.loan?.type === type && p.loan?.status === 'active')
-
       // Outstanding = sum of all unpaid amount_due
-      const outstanding = unpaid.reduce((s, p) => s + Number(p.amount_due), 0)
+      const outstanding = unpaidRows.reduce((s, p) => s + Number(p.amount_due), 0)
 
-      // Total Lent = remaining capital only (no interest)
-      const totalLent = unpaid.reduce((s, p) => {
-        const rate = Number(p.loan?.interest_rate || 0)
-        const amountDue = Number(p.amount_due)
-        if (type === 'weekly') {
-          // Each weekly row = principal/6 capital + interest/6
-          // Capital portion = amountDue / (1 + rate/100)
-          return s + amountDue / (1 + rate / 100)
-        }
-        // Monthly: capital = amountDue / (1 + rate/100)
-        return s + amountDue / (1 + rate / 100)
+      // Total Lent = capital portion of each unpaid row
+      // capital = amount_due / (1 + rate/100)
+      const totalLent = unpaidRows.reduce((s, p) => {
+        const rate = rateMap[p.loan_id] || 0
+        return s + Number(p.amount_due) / (1 + rate / 100)
       }, 0)
 
-      // Profit = interest portion of paid payments this month
+      // Step 3: profit = interest on paid payments this month for this loan type
       const startOfMonth = format(new Date(new Date().getFullYear(), new Date().getMonth(), 1), 'yyyy-MM-dd')
-      const allPaidWithFlag = await fetchPaidWithLastFlag()
-      const paidThisMonth = allPaidWithFlag.filter((p) =>
-        p.paid_at >= startOfMonth && p.loan?.type === type
-      )
-      const collected = paidThisMonth.reduce((s, p) => s + interestPortion(p), 0)
+      const allPaid = await fetchPaidWithLastFlag()
+      const collected = allPaid
+        .filter((p) => p.paid_at >= startOfMonth && p.loan?.type === type)
+        .reduce((s, p) => s + interestPortion(p), 0)
 
       return { totalLent, outstanding, collected, activeCount }
     },
