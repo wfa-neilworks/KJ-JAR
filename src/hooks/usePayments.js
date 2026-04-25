@@ -158,6 +158,7 @@ export function useDashboardStats(type) {
       if (lErr) throw lErr
 
       const activeCount = loans.length
+      console.log('[dashboard-stats] type:', type, 'active loans:', loans)
       if (activeCount === 0) {
         // Still need profit even if no active loans
         const startOfMonth = format(new Date(new Date().getFullYear(), new Date().getMonth(), 1), 'yyyy-MM-dd')
@@ -179,6 +180,7 @@ export function useDashboardStats(type) {
         .is('paid_at', null)
         .in('loan_id', activeLoanIds)
       if (uErr) throw uErr
+      console.log('[dashboard-stats] unpaid rows:', unpaidRows)
 
       // Outstanding = sum of all unpaid amount_due
       const outstanding = unpaidRows.reduce((s, p) => s + Number(p.amount_due), 0)
