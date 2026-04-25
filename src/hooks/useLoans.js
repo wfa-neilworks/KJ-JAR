@@ -34,6 +34,51 @@ export function useLoansByBorrower(borrowerId) {
   })
 }
 
+export function useEditLoan() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, principal, interest_rate, loan_date, type }) => {
+      const total_due = principal * (1 + interest_rate / 100)
+      const { error } = await supabase
+        .from('loans')
+        .update({ principal, interest_rate, loan_date, total_due })
+        .eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['loans'] }),
+  })
+}
+
+export function useEditPayment() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, amount_due, amount_paid, due_date, loan }) => {
+      const principal = Number(loan.principal)
+      const rate = Number(loan.interest_rate)
+      const interest = principal * (rate / 100)
+
+      let collection_type = null
+      if (amount_paid !== null && amount_paid !== undefined) {
+        const paid = Number(amount_paid)
+        const due = Number(amount_due)
+        if (Math.abs(paid - due) < 0.01) collection_type = 'complete'
+        else if (Math.abs(paid - interest) < 0.01) collection_type = 'interest_only'
+        else collection_type = 'partial'
+      }
+
+      const updates = { amount_due, due_date }
+      if (amount_paid !== null && amount_paid !== undefined) {
+        updates.amount_paid = amount_paid
+        updates.collection_type = collection_type
+      }
+
+      const { error } = await supabase.from('payments').update(updates).eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['loans'] }),
+  })
+}
+
 export function useCreateLoan() {
   const qc = useQueryClient()
   return useMutation({

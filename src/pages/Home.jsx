@@ -57,6 +57,7 @@ function CollectionModal({ selected, payments, onClose, markPaid }) {
   const toast = useToast()
   const [step, setStep] = useState('choose') // 'choose' | 'partial'
   const [partialAmount, setPartialAmount] = useState('')
+  const [note, setNote] = useState('')
 
   if (!selected) return null
 
@@ -97,6 +98,7 @@ function CollectionModal({ selected, payments, onClose, markPaid }) {
         amountPaid,
         rolloverAmount,
         interestRate: rate,
+        note,
       })
       toast({ message: 'Payment recorded!', type: 'success' })
       onClose()
@@ -176,6 +178,18 @@ function CollectionModal({ selected, payments, onClose, markPaid }) {
             </button>
           )}
 
+          {/* Note */}
+          <div className="flex flex-col gap-1">
+            <label className="text-sm font-medium text-gray-700">Note <span className="text-gray-400 font-normal">(optional)</span></label>
+            <textarea
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              placeholder="e.g. Paid at home, borrower requested rollover..."
+              rows={2}
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+            />
+          </div>
+
           <Button variant="ghost" size="full" onClick={onClose}>
             Cancel
           </Button>
@@ -219,6 +233,18 @@ function CollectionModal({ selected, payments, onClose, markPaid }) {
               </div>
             </div>
           )}
+
+          {/* Note on partial step too */}
+          <div className="flex flex-col gap-1">
+            <label className="text-sm font-medium text-gray-700">Note <span className="text-gray-400 font-normal">(optional)</span></label>
+            <textarea
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              placeholder="e.g. Borrower paid what they could..."
+              rows={2}
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+            />
+          </div>
 
           <Button
             size="full"

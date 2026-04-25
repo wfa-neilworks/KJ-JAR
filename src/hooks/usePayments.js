@@ -26,7 +26,7 @@ export function useUpcomingPayments() {
 export function useMarkPaid() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async ({ paymentId, loanId, isLastPayment, collectionType, amountPaid, rolloverAmount, interestRate }) => {
+    mutationFn: async ({ paymentId, loanId, isLastPayment, collectionType, amountPaid, rolloverAmount, interestRate, note }) => {
       const now = new Date().toISOString()
 
       // Mark current payment as paid with actual amount and type
@@ -36,6 +36,7 @@ export function useMarkPaid() {
           paid_at: now,
           amount_paid: amountPaid,
           collection_type: collectionType,
+          note: note || null,
         })
         .eq('id', paymentId)
       if (error) throw error
