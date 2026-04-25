@@ -179,19 +179,35 @@ export function useDashboardStats(type) {
       }
 
       const activeLoanIds = loans.map((l) => l.id)
+      const principalMap = {}
+      loans.forEach((l) => { principalMap[l.id] = Number(l.principal) })
 
-      // Total Lent = sum of principal of active loans (never changes mid-loan)
-      const totalLent = loans.reduce((s, l) => s + Number(l.principal), 0)
-
-      // Outstanding = sum of all unpaid amount_due rows
-      const { data: unpaidRows, error: uErr } = await supabase
+      // Get all payment rows for active loans (paid and unpaid) to compute stats
+      const { data: allRows, error: uErr } = await supabase
         .from('payments')
-        .select('loan_id, amount_due')
-        .is('paid_at', null)
+        .select('loan_id, amount_due, paid_at, week_number')
         .in('loan_id', activeLoanIds)
       if (uErr) throw uErr
 
+      // Build max week_number per loan to identify the last payment
+      const maxWeek = {}
+      allRows.forEach((r) => {
+        if (!maxWeek[r.loan_id] || r.week_number > maxWeek[r.loan_id])
+          maxWeek[r.loan_id] = r.week_number
+      })
+
+      const unpaidRows = allRows.filter((r) => !r.paid_at)
+      const paidRows = allRows.filter((r) => r.paid_at)
+
+      // Outstanding = sum of remaining unpaid amount_due
       const outstanding = unpaidRows.reduce((s, p) => s + Number(p.amount_due), 0)
+
+      // Total Lent = principal minus amount_due of each paid payment EXCEPT the last one
+      // (last payment is pure interest/profit, not capital recovery)
+      const totalPaidCapital = paidRows
+        .filter((p) => p.week_number !== maxWeek[p.loan_id])
+        .reduce((s, p) => s + Number(p.amount_due), 0)
+      const totalLent = Math.max(0, loans.reduce((s, l) => s + Number(l.principal), 0) - totalPaidCapital)
 
       // Step 3: profit = interest on paid payments this month for this loan type
       const startOfMonth = format(new Date(new Date().getFullYear(), new Date().getMonth(), 1), 'yyyy-MM-dd')
