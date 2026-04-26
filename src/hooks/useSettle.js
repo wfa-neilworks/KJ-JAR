@@ -49,6 +49,27 @@ export function useDeleteSettleLoan() {
   })
 }
 
+export function useDeleteSettlePayment() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ paymentId, loanId, paymentAmount, totalPaid, principal }) => {
+      const { error } = await supabase.from('settle_payments').delete().eq('id', paymentId)
+      if (error) throw error
+
+      // If loan was completed but deleting this payment drops total below principal, revert to active
+      const newTotal = totalPaid - paymentAmount
+      if (newTotal < principal) {
+        const { error: loanErr } = await supabase
+          .from('settle_loans')
+          .update({ status: 'active' })
+          .eq('id', loanId)
+        if (loanErr) throw loanErr
+      }
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['settle-loans'] }),
+  })
+}
+
 export function useCollectSettlePayment() {
   const qc = useQueryClient()
   return useMutation({

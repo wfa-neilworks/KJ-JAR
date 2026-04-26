@@ -6,7 +6,7 @@ import Modal from '@/components/ui/Modal'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import FAB from '@/components/layout/FAB'
-import { useSettleLoans, useCollectSettlePayment, useDeleteSettleLoan } from '@/hooks/useSettle'
+import { useSettleLoans, useCollectSettlePayment, useDeleteSettleLoan, useDeleteSettlePayment } from '@/hooks/useSettle'
 import { useBorrowers } from '@/hooks/useBorrowers'
 import { useToast } from '@/components/ui/Toast'
 import { formatPeso } from '@/lib/loanUtils'
@@ -100,6 +100,70 @@ function CollectModal({ loan, onClose }) {
   )
 }
 
+function PaymentRow({ payment, loan, totalPaid }) {
+  const toast = useToast()
+  const deletePayment = useDeleteSettlePayment()
+  const [confirm, setConfirm] = useState(false)
+
+  const handleDelete = async () => {
+    try {
+      await deletePayment.mutateAsync({
+        paymentId: payment.id,
+        loanId: loan.id,
+        paymentAmount: Number(payment.amount),
+        totalPaid,
+        principal: Number(loan.principal),
+      })
+      toast({ message: 'Payment deleted', type: 'success' })
+      setConfirm(false)
+    } catch {
+      toast({ message: 'Failed to delete payment', type: 'error' })
+      setConfirm(false)
+    }
+  }
+
+  return (
+    <>
+      <div className="bg-teal-50 rounded-lg px-3 py-2 flex items-center justify-between text-sm">
+        <div>
+          <span className="text-gray-600">{format(new Date(payment.paid_at), 'MMM d, yyyy h:mm a')}</span>
+          {payment.note && <p className="text-xs text-gray-400 italic">"{payment.note}"</p>}
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="text-right">
+            <span className="font-semibold text-teal-700">{formatPeso(payment.amount)}</span>
+          </div>
+          <button
+            onClick={() => setConfirm(true)}
+            className="text-gray-300 hover:text-red-500 transition-colors p-1 rounded"
+          >
+            <Trash2 size={13} />
+          </button>
+        </div>
+      </div>
+
+      <Modal open={confirm} onClose={() => setConfirm(false)} title="Delete Payment">
+        <div className="flex flex-col gap-4">
+          <p className="text-sm text-gray-600 text-center">
+            Delete this payment of <span className="font-semibold">{formatPeso(payment.amount)}</span>? The progress bar and dashboard will update.
+          </p>
+          <div className="flex gap-3">
+            <Button variant="outline" size="full" onClick={() => setConfirm(false)}>Cancel</Button>
+            <Button
+              size="full"
+              onClick={handleDelete}
+              disabled={deletePayment.isPending}
+              className="bg-red-500 hover:bg-red-600 text-white"
+            >
+              {deletePayment.isPending ? 'Deleting...' : 'Yes, Delete'}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+    </>
+  )
+}
+
 function LoanItem({ loan }) {
   const toast = useToast()
   const deleteLoan = useDeleteSettleLoan()
@@ -180,13 +244,7 @@ function LoanItem({ loan }) {
             <div className="flex flex-col gap-1.5">
               <p className="text-xs font-medium text-gray-600 uppercase tracking-wide mb-1">Payment History</p>
               {[...payments].sort((a, b) => new Date(b.paid_at) - new Date(a.paid_at)).map((p) => (
-                <div key={p.id} className="bg-teal-50 rounded-lg px-3 py-2 flex items-center justify-between text-sm">
-                  <span className="text-gray-600">{format(new Date(p.paid_at), 'MMM d, yyyy h:mm a')}</span>
-                  <div className="text-right">
-                    <span className="font-semibold text-teal-700">{formatPeso(p.amount)}</span>
-                    {p.note && <p className="text-xs text-gray-400 italic">"{p.note}"</p>}
-                  </div>
-                </div>
+                <PaymentRow key={p.id} payment={p} loan={loan} totalPaid={totalPaid} />
               ))}
             </div>
           ) : (
