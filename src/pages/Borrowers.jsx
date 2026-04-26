@@ -66,12 +66,11 @@ export default function Borrowers() {
     .filter((b) => b.name.toLowerCase().includes(search.toLowerCase()) || b.mobile.includes(search))
 
   const handleDeactivate = async (borrower) => {
-    const { data: loans } = await supabase
-      .from('loans')
-      .select('id')
-      .eq('borrower_id', borrower.id)
-      .eq('status', 'active')
-    if (loans && loans.length > 0) {
+    const [{ data: loans }, { data: settleLoans }] = await Promise.all([
+      supabase.from('loans').select('id').eq('borrower_id', borrower.id).eq('status', 'active'),
+      supabase.from('settle_loans').select('id').eq('borrower_id', borrower.id).eq('status', 'active'),
+    ])
+    if ((loans && loans.length > 0) || (settleLoans && settleLoans.length > 0)) {
       toast({ message: 'Borrower has a pending loan. Cannot deactivate.', type: 'error' })
       return
     }

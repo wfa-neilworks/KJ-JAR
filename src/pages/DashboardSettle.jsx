@@ -178,6 +178,7 @@ function LoanItem({ loan }) {
 
 export default function DashboardSettle() {
   const { data: loans = [], isLoading } = useSettleLoans()
+  const [tab, setTab] = useState('active')
 
   const activeLoans = loans.filter((l) => l.status === 'active')
   const totalLent = activeLoans.reduce((s, l) => {
@@ -185,6 +186,7 @@ export default function DashboardSettle() {
     return s + Math.max(0, Number(l.principal) - paid)
   }, 0)
   const activeCount = activeLoans.length
+  const filteredLoans = loans.filter((l) => l.status === (tab === 'active' ? 'active' : 'completed'))
 
   return (
     <PageWrapper title="To Settle">
@@ -220,14 +222,26 @@ export default function DashboardSettle() {
       </div>
 
       {/* Loan list */}
-      <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-2">All Loans</h2>
+      <div className="flex gap-2 mb-3">
+        {['active', 'completed'].map((t) => (
+          <button
+            key={t}
+            onClick={() => setTab(t)}
+            className={`flex-1 py-2 rounded-lg text-sm font-medium capitalize transition-colors ${
+              tab === t ? 'bg-teal-600 text-white' : 'bg-white text-gray-600 border border-gray-200'
+            }`}
+          >
+            {t}
+          </button>
+        ))}
+      </div>
       {isLoading ? (
         <p className="text-center text-gray-400 py-8">Loading...</p>
-      ) : loans.length === 0 ? (
-        <p className="text-center text-gray-400 py-8">No settle loans yet.</p>
+      ) : filteredLoans.length === 0 ? (
+        <p className="text-center text-gray-400 py-8">No {tab} loans.</p>
       ) : (
         <div className="flex flex-col gap-3">
-          {loans.map((loan) => <LoanItem key={loan.id} loan={loan} />)}
+          {filteredLoans.map((loan) => <LoanItem key={loan.id} loan={loan} />)}
         </div>
       )}
 
