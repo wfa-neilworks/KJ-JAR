@@ -4,6 +4,7 @@ import { ToastProvider } from '@/components/ui/Toast'
 import BottomNav from '@/components/layout/BottomNav'
 import Home from '@/pages/Home'
 import Dashboard from '@/pages/Dashboard'
+import DashboardSettle from '@/pages/DashboardSettle'
 import Borrowers from '@/pages/Borrowers'
 import BorrowerDetail from '@/pages/BorrowerDetail'
 import NewLoan from '@/pages/NewLoan'
@@ -27,6 +28,7 @@ export default function App() {
               <Route path="/" element={<Home />} />
               <Route path="/weekly" element={<Dashboard type="weekly" />} />
               <Route path="/monthly" element={<Dashboard type="monthly" />} />
+              <Route path="/settle" element={<DashboardSettle />} />
               <Route path="/borrowers" element={<Borrowers />} />
               <Route path="/borrowers/:id" element={<BorrowerDetail />} />
               <Route path="/new-loan" element={<NewLoan />} />

@@ -6,6 +6,7 @@ import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import { useBorrowers } from '@/hooks/useBorrowers'
 import { useCreateLoan } from '@/hooks/useLoans'
+import { useCreateSettleLoan } from '@/hooks/useSettle'
 import { useToast } from '@/components/ui/Toast'
 import { calcTotalDue, calcWeeklyAmount, formatPeso } from '@/lib/loanUtils'
 import { format } from 'date-fns'
@@ -15,6 +16,7 @@ export default function NewLoan() {
   const toast = useToast()
   const { data: borrowers = [] } = useBorrowers()
   const createLoan = useCreateLoan()
+  const createSettleLoan = useCreateSettleLoan()
 
   const activeBorrowers = borrowers.filter((b) => b.is_active)
 
@@ -64,24 +66,36 @@ export default function NewLoan() {
   const submit = async (e) => {
     e.preventDefault()
     if (!validate()) return
-    const rate = form.type === 'weekly' ? 20 : parseFloat(form.interest_rate)
     const principal = parseFloat(form.principal)
-    const total_due = calcTotalDue(principal, rate)
     try {
-      await createLoan.mutateAsync({
-        borrower_id: form.borrower_id,
-        type: form.type,
-        principal,
-        interest_rate: rate,
-        total_due,
-        loan_date: form.loan_date,
-      })
-      toast({ message: 'Loan created successfully!', type: 'success' })
-      navigate('/')
+      if (form.type === 'settle') {
+        await createSettleLoan.mutateAsync({
+          borrower_id: form.borrower_id,
+          principal,
+          loan_date: form.loan_date,
+        })
+        toast({ message: 'Loan created successfully!', type: 'success' })
+        navigate('/settle')
+      } else {
+        const rate = form.type === 'weekly' ? 20 : parseFloat(form.interest_rate)
+        const total_due = calcTotalDue(principal, rate)
+        await createLoan.mutateAsync({
+          borrower_id: form.borrower_id,
+          type: form.type,
+          principal,
+          interest_rate: rate,
+          total_due,
+          loan_date: form.loan_date,
+        })
+        toast({ message: 'Loan created successfully!', type: 'success' })
+        navigate('/')
+      }
     } catch {
       toast({ message: 'Failed to create loan. Please try again.', type: 'error' })
     }
   }
+
+  const isPending = createLoan.isPending || createSettleLoan.isPending
 
   return (
     <PageWrapper
@@ -145,26 +159,36 @@ export default function NewLoan() {
         {/* Loan type */}
         <div className="flex flex-col gap-1">
           <label className="text-sm font-medium text-gray-700">Loan Term *</label>
-          <div className="flex gap-3">
-            {['weekly', 'monthly'].map((t) => (
+          <div className="flex gap-2">
+            {[
+              { value: 'weekly', label: 'Weekly' },
+              { value: 'monthly', label: 'Monthly' },
+              { value: 'settle', label: 'To Settle' },
+            ].map((t) => (
               <button
-                key={t}
+                key={t.value}
                 type="button"
-                onClick={() => { set('type')(t); set('interest_rate')('') }}
-                className={`flex-1 py-2.5 rounded-lg border text-sm font-medium capitalize transition-colors ${
-                  form.type === t
+                onClick={() => { set('type')(t.value); set('interest_rate')('') }}
+                className={`flex-1 py-2.5 rounded-lg border text-sm font-medium transition-colors ${
+                  form.type === t.value
                     ? 'bg-blue-600 text-white border-blue-600'
                     : 'bg-white text-gray-600 border-gray-300 hover:border-blue-400'
                 }`}
               >
-                {t}
+                {t.label}
               </button>
             ))}
           </div>
           {errors.type && <span className="text-xs text-red-500">{errors.type}</span>}
         </div>
 
-        {/* Interest rate */}
+        {form.type === 'settle' && (
+          <div className="bg-teal-50 border border-teal-200 rounded-xl px-4 py-3 text-sm text-teal-700">
+            No interest, no due date — payments collected anytime until fully settled.
+          </div>
+        )}
+
+        {/* Interest rate — hidden for settle */}
         {form.type === 'weekly' && (
           <div className="flex flex-col gap-1">
             <label className="text-sm font-medium text-gray-700">Interest Rate</label>
@@ -205,8 +229,8 @@ export default function NewLoan() {
           error={errors.loan_date}
         />
 
-        {/* Preview */}
-        {preview && (
+        {/* Preview — only for weekly/monthly */}
+        {preview && form.type !== 'settle' && (
           <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex flex-col gap-2">
             <p className="text-sm font-semibold text-blue-800">Loan Preview</p>
             <div className="flex justify-between text-sm">
@@ -228,8 +252,8 @@ export default function NewLoan() {
           </div>
         )}
 
-        <Button type="submit" size="full" disabled={createLoan.isPending}>
-          {createLoan.isPending ? 'Creating...' : 'Create Loan'}
+        <Button type="submit" size="full" disabled={isPending}>
+          {isPending ? 'Creating...' : 'Create Loan'}
         </Button>
       </form>
     </PageWrapper>

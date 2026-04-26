@@ -1,11 +1,12 @@
 import { NavLink } from 'react-router-dom'
-import { Bell, CalendarDays, BarChart2, Users } from 'lucide-react'
+import { Bell, CalendarDays, BarChart2, Users, Handshake } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const navItems = [
   { to: '/', icon: Bell, label: 'Home' },
   { to: '/weekly', icon: CalendarDays, label: 'Weekly' },
   { to: '/monthly', icon: BarChart2, label: 'Monthly' },
+  { to: '/settle', icon: Handshake, label: 'Settle' },
   { to: '/borrowers', icon: Users, label: 'Borrowers' },
 ]
 
