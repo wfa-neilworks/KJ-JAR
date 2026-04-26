@@ -31,6 +31,24 @@ export function useCreateSettleLoan() {
   })
 }
 
+export function useDeleteSettleLoan() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (loanId) => {
+      const { data: paid } = await supabase
+        .from('settle_payments')
+        .select('id')
+        .eq('loan_id', loanId)
+        .limit(1)
+      if (paid && paid.length > 0) throw new Error('has_payments')
+
+      const { error } = await supabase.from('settle_loans').delete().eq('id', loanId)
+      if (error) throw error
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['settle-loans'] }),
+  })
+}
+
 export function useCollectSettlePayment() {
   const qc = useQueryClient()
   return useMutation({

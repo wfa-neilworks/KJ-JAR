@@ -126,6 +126,32 @@ export function useEditPayment() {
   })
 }
 
+export function useDeleteLoan() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (loanId) => {
+      // Check if any payment has been made
+      const { data: paid } = await supabase
+        .from('payments')
+        .select('id')
+        .eq('loan_id', loanId)
+        .not('paid_at', 'is', null)
+        .limit(1)
+      if (paid && paid.length > 0) throw new Error('has_payments')
+
+      // Delete all payment rows first, then the loan
+      await supabase.from('payments').delete().eq('loan_id', loanId)
+      const { error } = await supabase.from('loans').delete().eq('id', loanId)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['loans'] })
+      qc.invalidateQueries({ queryKey: ['payments'] })
+      qc.invalidateQueries({ queryKey: ['dashboard-stats'] })
+    },
+  })
+}
+
 export function useCreateLoan() {
   const qc = useQueryClient()
   return useMutation({

@@ -1,12 +1,12 @@
 import { useState } from 'react'
 import { format } from 'date-fns'
-import { Banknote, ClipboardList, ChevronDown, ChevronUp } from 'lucide-react'
+import { Banknote, ClipboardList, ChevronDown, ChevronUp, Trash2 } from 'lucide-react'
 import PageWrapper from '@/components/layout/PageWrapper'
 import Modal from '@/components/ui/Modal'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import FAB from '@/components/layout/FAB'
-import { useSettleLoans, useCollectSettlePayment } from '@/hooks/useSettle'
+import { useSettleLoans, useCollectSettlePayment, useDeleteSettleLoan } from '@/hooks/useSettle'
 import { useBorrowers } from '@/hooks/useBorrowers'
 import { useToast } from '@/components/ui/Toast'
 import { formatPeso } from '@/lib/loanUtils'
@@ -101,8 +101,26 @@ function CollectModal({ loan, onClose }) {
 }
 
 function LoanItem({ loan }) {
+  const toast = useToast()
+  const deleteLoan = useDeleteSettleLoan()
   const [expanded, setExpanded] = useState(false)
   const [collecting, setCollecting] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
+
+  const handleDelete = async () => {
+    try {
+      await deleteLoan.mutateAsync(loan.id)
+      toast({ message: 'Loan deleted', type: 'success' })
+      setConfirmDelete(false)
+    } catch (e) {
+      if (e.message === 'has_payments') {
+        toast({ message: 'Cannot delete — loan already has payments recorded.', type: 'error' })
+      } else {
+        toast({ message: 'Failed to delete loan', type: 'error' })
+      }
+      setConfirmDelete(false)
+    }
+  }
 
   const payments = loan.payments || []
   const totalPaid = payments.reduce((s, p) => s + Number(p.amount), 0)
@@ -132,14 +150,22 @@ function LoanItem({ loan }) {
           <ProgressBar totalPaid={totalPaid} principal={principal} />
         </div>
         <div className="flex flex-col items-end gap-2 ml-2">
-          {isActive && (
+          <div className="flex flex-col items-end gap-1">
+            {isActive && (
+              <button
+                onClick={(e) => { e.stopPropagation(); setCollecting(true) }}
+                className="text-xs font-medium px-3 py-1.5 rounded-lg bg-teal-500 text-white hover:bg-teal-600 transition-colors"
+              >
+                Collect
+              </button>
+            )}
             <button
-              onClick={(e) => { e.stopPropagation(); setCollecting(true) }}
-              className="text-xs font-medium px-3 py-1.5 rounded-lg bg-teal-500 text-white hover:bg-teal-600 transition-colors"
+              onClick={(e) => { e.stopPropagation(); setConfirmDelete(true) }}
+              className="text-xs font-medium px-2 py-1 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors flex items-center gap-1"
             >
-              Collect
+              <Trash2 size={12} /> Delete
             </button>
-          )}
+          </div>
           {expanded ? <ChevronUp size={15} className="text-gray-400" /> : <ChevronDown size={15} className="text-gray-400" />}
         </div>
       </div>
@@ -171,6 +197,25 @@ function LoanItem({ loan }) {
 
       <Modal open={collecting} onClose={() => setCollecting(false)} title="Record Payment">
         <CollectModal loan={loan} onClose={() => setCollecting(false)} />
+      </Modal>
+
+      <Modal open={confirmDelete} onClose={() => setConfirmDelete(false)} title="Delete Loan">
+        <div className="flex flex-col gap-4">
+          <p className="text-sm text-gray-600 text-center">
+            Delete this loan of <span className="font-semibold">{formatPeso(loan.principal)}</span> for <span className="font-semibold">{loan.borrower?.name}</span>? This cannot be undone.
+          </p>
+          <div className="flex gap-3">
+            <Button variant="outline" size="full" onClick={() => setConfirmDelete(false)}>Cancel</Button>
+            <Button
+              size="full"
+              onClick={handleDelete}
+              disabled={deleteLoan.isPending}
+              className="bg-red-500 hover:bg-red-600 text-white"
+            >
+              {deleteLoan.isPending ? 'Deleting...' : 'Yes, Delete'}
+            </Button>
+          </div>
+        </div>
       </Modal>
     </div>
   )

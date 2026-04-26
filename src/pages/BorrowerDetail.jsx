@@ -1,13 +1,13 @@
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Phone, MapPin, Link, Shield, Pencil, ChevronDown, ChevronUp } from 'lucide-react'
+import { ArrowLeft, Phone, MapPin, Link, Shield, Pencil, ChevronDown, ChevronUp, Trash2 } from 'lucide-react'
 import { format } from 'date-fns'
 import PageWrapper from '@/components/layout/PageWrapper'
 import Modal from '@/components/ui/Modal'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import { useBorrowers, useEditBorrower } from '@/hooks/useBorrowers'
-import { useLoansByBorrower, useEditLoan, useEditPayment } from '@/hooks/useLoans'
+import { useLoansByBorrower, useEditLoan, useEditPayment, useDeleteLoan } from '@/hooks/useLoans'
 import { useCollectLapseFee } from '@/hooks/usePayments'
 import { useToast } from '@/components/ui/Toast'
 import { formatPeso } from '@/lib/loanUtils'
@@ -233,10 +233,12 @@ function EditPaymentModal({ payment, loan, onClose }) {
 function LoanCard({ loan }) {
   const toast = useToast()
   const collectLapseFee = useCollectLapseFee()
+  const deleteLoan = useDeleteLoan()
   const [expanded, setExpanded] = useState(false)
   const [editLoan, setEditLoan] = useState(false)
   const [editPayment, setEditPayment] = useState(null)
   const [collectingLapseFee, setCollectingLapseFee] = useState(null)
+  const [confirmDelete, setConfirmDelete] = useState(false)
 
   const handleCollectLapseFee = async () => {
     try {
@@ -245,6 +247,21 @@ function LoanCard({ loan }) {
       setCollectingLapseFee(null)
     } catch {
       toast({ message: 'Failed to collect lapse fee', type: 'error' })
+    }
+  }
+
+  const handleDelete = async () => {
+    try {
+      await deleteLoan.mutateAsync(loan.id)
+      toast({ message: 'Loan deleted', type: 'success' })
+      setConfirmDelete(false)
+    } catch (e) {
+      if (e.message === 'has_payments') {
+        toast({ message: 'Cannot delete — loan already has payments recorded.', type: 'error' })
+      } else {
+        toast({ message: 'Failed to delete loan', type: 'error' })
+      }
+      setConfirmDelete(false)
     }
   }
 
@@ -290,13 +307,22 @@ function LoanCard({ loan }) {
             <p className="text-sm text-gray-500">
               Total due: <span className="font-medium text-gray-700">{formatPeso(loan.total_due)}</span>
             </p>
-            <button
+            <div className="flex items-center gap-1">
+              <button
+                onClick={(e) => { e.stopPropagation(); setConfirmDelete(true) }}
+                className="p-1.5 rounded-full hover:bg-red-50 text-gray-400 hover:text-red-500 flex items-center gap-1 text-xs"
+                title="Delete loan"
+              >
+                <Trash2 size={13} /> Delete
+              </button>
+              <button
               onClick={(e) => { e.stopPropagation(); setEditLoan(true) }}
               className="p-1.5 rounded-full hover:bg-gray-100 text-gray-400 hover:text-gray-700 flex items-center gap-1 text-xs"
               title="Edit loan"
             >
               <Pencil size={13} /> Edit loan
             </button>
+            </div>
           </div>
 
           {/* Payment trail */}
@@ -391,6 +417,22 @@ function LoanCard({ loan }) {
             </div>
           </div>
         )}
+      </Modal>
+
+      {/* Delete Loan Confirm */}
+      <Modal open={confirmDelete} onClose={() => setConfirmDelete(false)} title="Delete Loan">
+        <div className="flex flex-col gap-4">
+          <p className="text-sm text-gray-600 text-center">
+            Delete this <span className="font-semibold">{loan.type}</span> loan of <span className="font-semibold">{formatPeso(loan.principal)}</span>? This cannot be undone.
+          </p>
+          <div className="flex gap-3">
+            <Button variant="outline" size="full" onClick={() => setConfirmDelete(false)}>Cancel</Button>
+            <Button size="full" onClick={handleDelete} disabled={deleteLoan.isPending}
+              className="bg-red-500 hover:bg-red-600 text-white">
+              {deleteLoan.isPending ? 'Deleting...' : 'Yes, Delete'}
+            </Button>
+          </div>
+        </div>
       </Modal>
 
       {/* Edit Loan Modal */}
