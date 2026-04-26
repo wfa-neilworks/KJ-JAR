@@ -15,6 +15,22 @@ export function useSettleLoans() {
   })
 }
 
+export function useSettleLoansByBorrower(borrowerId) {
+  return useQuery({
+    queryKey: ['settle-loans', 'borrower', borrowerId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('settle_loans')
+        .select('*, payments:settle_payments(*)')
+        .eq('borrower_id', borrowerId)
+        .order('created_at', { ascending: false })
+      if (error) throw error
+      return data
+    },
+    enabled: !!borrowerId,
+  })
+}
+
 export function useCreateSettleLoan() {
   const qc = useQueryClient()
   return useMutation({

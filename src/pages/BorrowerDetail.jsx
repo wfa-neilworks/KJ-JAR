@@ -8,6 +8,7 @@ import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import { useBorrowers, useEditBorrower } from '@/hooks/useBorrowers'
 import { useLoansByBorrower, useEditLoan, useEditPayment, useDeleteLoan } from '@/hooks/useLoans'
+import { useSettleLoansByBorrower, useDeleteSettleLoan, useDeleteSettlePayment } from '@/hooks/useSettle'
 import { useCollectLapseFee } from '@/hooks/usePayments'
 import { useToast } from '@/components/ui/Toast'
 import { formatPeso } from '@/lib/loanUtils'
@@ -454,14 +455,179 @@ function LoanCard({ loan }) {
   )
 }
 
+function SettleLoanCard({ loan }) {
+  const toast = useToast()
+  const deleteLoan = useDeleteSettleLoan()
+  const deletePayment = useDeleteSettlePayment()
+  const [expanded, setExpanded] = useState(false)
+  const [confirmDeleteLoan, setConfirmDeleteLoan] = useState(false)
+  const [confirmDeletePayment, setConfirmDeletePayment] = useState(null)
+
+  const payments = loan.payments || []
+  const totalPaid = payments.reduce((s, p) => s + Number(p.amount), 0)
+  const principal = Number(loan.principal)
+  const remaining = Math.max(0, principal - totalPaid)
+  const pct = Math.min(100, (totalPaid / principal) * 100)
+
+  const handleDeleteLoan = async () => {
+    try {
+      await deleteLoan.mutateAsync(loan.id)
+      toast({ message: 'Loan deleted', type: 'success' })
+      setConfirmDeleteLoan(false)
+    } catch (e) {
+      toast({ message: e.message === 'has_payments' ? 'Cannot delete — loan has payments recorded.' : 'Failed to delete loan', type: 'error' })
+      setConfirmDeleteLoan(false)
+    }
+  }
+
+  const handleDeletePayment = async () => {
+    const p = confirmDeletePayment
+    try {
+      await deletePayment.mutateAsync({
+        paymentId: p.id,
+        loanId: loan.id,
+        paymentAmount: Number(p.amount),
+        totalPaid,
+        principal,
+      })
+      toast({ message: 'Payment deleted', type: 'success' })
+      setConfirmDeletePayment(null)
+    } catch {
+      toast({ message: 'Failed to delete payment', type: 'error' })
+      setConfirmDeletePayment(null)
+    }
+  }
+
+  return (
+    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+      <button
+        className="w-full px-4 py-3 flex items-center gap-3 text-left hover:bg-gray-50 transition-colors"
+        onClick={() => setExpanded((v) => !v)}
+      >
+        <div className="flex-1 flex flex-col gap-1">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-teal-100 text-teal-700">To Settle</span>
+            <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+              loan.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
+            }`}>
+              {loan.status}
+            </span>
+          </div>
+          <div className="flex items-baseline gap-3 mt-0.5">
+            <span className="font-semibold text-gray-900">{formatPeso(principal)}</span>
+            <span className="text-xs text-gray-400">No interest</span>
+            <span className="text-xs text-gray-400">{format(new Date(loan.loan_date), 'MMM d, yyyy')}</span>
+          </div>
+          <div className="w-full bg-gray-200 rounded-full h-1.5 mt-0.5">
+            <div className="bg-teal-500 h-1.5 rounded-full transition-all" style={{ width: `${pct}%` }} />
+          </div>
+          <p className="text-xs text-gray-400">{formatPeso(totalPaid)} paid · {formatPeso(remaining)} remaining</p>
+        </div>
+        {expanded ? <ChevronUp size={16} className="text-gray-400 shrink-0" /> : <ChevronDown size={16} className="text-gray-400 shrink-0" />}
+      </button>
+
+      {expanded && (
+        <div className="px-4 pb-4 flex flex-col gap-3 border-t border-gray-100">
+          <div className="flex items-center justify-end pt-3">
+            <button
+              onClick={(e) => { e.stopPropagation(); setConfirmDeleteLoan(true) }}
+              className="p-1.5 rounded-full hover:bg-red-50 text-gray-400 hover:text-red-500 flex items-center gap-1 text-xs"
+            >
+              <Trash2 size={13} /> Delete
+            </button>
+          </div>
+
+          {payments.length > 0 ? (
+            <div className="flex flex-col gap-1.5">
+              <p className="text-xs font-medium text-gray-600 uppercase tracking-wide">Payment History</p>
+              {[...payments].sort((a, b) => new Date(b.paid_at) - new Date(a.paid_at)).map((p) => (
+                <div key={p.id} className="bg-teal-50 rounded-lg px-3 py-2 flex items-center justify-between text-sm">
+                  <div>
+                    <span className="text-gray-600">{format(new Date(p.paid_at), 'MMM d, yyyy h:mm a')}</span>
+                    {p.note && <p className="text-xs text-gray-400 italic">"{p.note}"</p>}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold text-teal-700">{formatPeso(p.amount)}</span>
+                    <button
+                      onClick={() => setConfirmDeletePayment(p)}
+                      className="text-gray-300 hover:text-red-500 transition-colors p-1 rounded"
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-gray-400 text-center py-2">No payments yet</p>
+          )}
+        </div>
+      )}
+
+      <Modal open={confirmDeleteLoan} onClose={() => setConfirmDeleteLoan(false)} title="Delete Loan">
+        <div className="flex flex-col gap-4">
+          <p className="text-sm text-gray-600 text-center">
+            Delete this To Settle loan of <span className="font-semibold">{formatPeso(principal)}</span>? This cannot be undone.
+          </p>
+          <div className="flex gap-3">
+            <Button variant="outline" size="full" onClick={() => setConfirmDeleteLoan(false)}>Cancel</Button>
+            <Button size="full" onClick={handleDeleteLoan} disabled={deleteLoan.isPending}
+              className="bg-red-500 hover:bg-red-600 text-white">
+              {deleteLoan.isPending ? 'Deleting...' : 'Yes, Delete'}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal open={!!confirmDeletePayment} onClose={() => setConfirmDeletePayment(null)} title="Delete Payment">
+        {confirmDeletePayment && (
+          <div className="flex flex-col gap-4">
+            <p className="text-sm text-gray-600 text-center">
+              Delete this payment of <span className="font-semibold">{formatPeso(confirmDeletePayment.amount)}</span>?
+            </p>
+            <div className="flex gap-3">
+              <Button variant="outline" size="full" onClick={() => setConfirmDeletePayment(null)}>Cancel</Button>
+              <Button size="full" onClick={handleDeletePayment} disabled={deletePayment.isPending}
+                className="bg-red-500 hover:bg-red-600 text-white">
+                {deletePayment.isPending ? 'Deleting...' : 'Yes, Delete'}
+              </Button>
+            </div>
+          </div>
+        )}
+      </Modal>
+    </div>
+  )
+}
+
 export default function BorrowerDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
   const { data: borrowers = [] } = useBorrowers()
-  const { data: loans = [], isLoading } = useLoansByBorrower(id)
+  const { data: loans = [], isLoading: loansLoading } = useLoansByBorrower(id)
+  const { data: settleLoans = [], isLoading: settleLoading } = useSettleLoansByBorrower(id)
   const [editBorrower, setEditBorrower] = useState(false)
+  const [filter, setFilter] = useState('all')
 
   const borrower = borrowers.find((b) => b.id === id)
+
+  // Build dynamic filter tabs — only show types that exist
+  const hasMonthly = loans.some((l) => l.type === 'monthly')
+  const hasWeekly = loans.some((l) => l.type === 'weekly')
+  const hasSettle = settleLoans.length > 0
+  const tabs = [
+    'all',
+    ...(hasMonthly ? ['monthly'] : []),
+    ...(hasWeekly ? ['weekly'] : []),
+    ...(hasSettle ? ['settle'] : []),
+  ]
+
+  const isLoading = loansLoading || settleLoading
+  const hasAny = loans.length > 0 || settleLoans.length > 0
+
+  const showLoans = filter === 'all' || filter === 'monthly' || filter === 'weekly'
+    ? loans.filter((l) => filter === 'all' || l.type === filter)
+    : []
+  const showSettle = filter === 'all' || filter === 'settle' ? settleLoans : []
 
   if (!borrower) return (
     <PageWrapper title="Borrower">
@@ -516,13 +682,31 @@ export default function BorrowerDetail() {
         Loan History
       </h2>
 
+      {/* Dynamic filter tabs */}
+      {!isLoading && hasAny && tabs.length > 1 && (
+        <div className="flex gap-2 mb-3">
+          {tabs.map((t) => (
+            <button
+              key={t}
+              onClick={() => setFilter(t)}
+              className={`flex-1 py-2 rounded-lg text-sm font-medium capitalize transition-colors ${
+                filter === t ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 border border-gray-200'
+              }`}
+            >
+              {t === 'settle' ? 'To Settle' : t}
+            </button>
+          ))}
+        </div>
+      )}
+
       {isLoading ? (
         <p className="text-center text-gray-400 py-8">Loading...</p>
-      ) : loans.length === 0 ? (
+      ) : !hasAny ? (
         <p className="text-center text-gray-400 py-8">No loans on record.</p>
       ) : (
         <div className="flex flex-col gap-3">
-          {loans.map((loan) => <LoanCard key={loan.id} loan={loan} />)}
+          {showLoans.map((loan) => <LoanCard key={loan.id} loan={loan} />)}
+          {showSettle.map((loan) => <SettleLoanCard key={loan.id} loan={loan} />)}
         </div>
       )}
 
