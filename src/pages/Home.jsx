@@ -322,7 +322,7 @@ export default function Home() {
   })
 
   return (
-    <PageWrapper title="JAR — Collections">
+    <PageWrapper title="Collections">
       {isLoading ? (
         <p className="text-center text-gray-400 py-10">Loading...</p>
       ) : sorted.length === 0 ? (
