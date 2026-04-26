@@ -1,4 +1,4 @@
-import jarLogo from '/JAR-LOGO-CROPPED.png'
+import jarLogo from '@/assets/JAR-LOGO-CROPPED.png'
 
 export default function PageWrapper({ title, children, action }) {
   return (
