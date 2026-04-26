@@ -5,12 +5,12 @@ import { cn } from '@/lib/utils'
 export default function Modal({ open, onClose, title, children, className }) {
   if (!open) return null
   return createPortal(
-    <div className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center">
+    <div className="fixed inset-0 z-[200] flex items-center justify-center px-4">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
       <div
         className={cn(
-          'relative z-10 bg-white w-full sm:max-w-md sm:rounded-xl rounded-t-2xl shadow-xl flex flex-col',
-          'max-h-[calc(100dvh-64px)] sm:max-h-[90vh]',
+          'relative z-10 bg-white w-full max-w-md rounded-2xl shadow-xl flex flex-col',
+          'max-h-[calc(100dvh-96px)]',
           className
         )}
       >
