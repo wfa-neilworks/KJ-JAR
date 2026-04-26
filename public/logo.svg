@@ -1,37 +1,97 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 260" fill="none">
-  <!-- Jar lid -->
-  <rect x="62" y="38" width="76" height="18" rx="6" fill="#0f766e"/>
-  <rect x="68" y="32" width="64" height="12" rx="5" fill="#14b8a6"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 280" fill="none">
 
-  <!-- Jar body -->
-  <path d="M55 56 Q48 70 48 90 L48 190 Q48 208 66 208 L134 208 Q152 208 152 190 L152 90 Q152 70 145 56 Z" fill="#ccfbf1" stroke="#0d9488" stroke-width="3"/>
+  <!-- === OVERFLOW BILLS above jar === -->
+  <!-- Bill left, tilted left -->
+  <g transform="rotate(-22, 72, 52)">
+    <rect x="42" y="30" width="52" height="26" rx="3" fill="#4ade80" stroke="#16a34a" stroke-width="1.2"/>
+    <rect x="46" y="34" width="44" height="18" rx="2" fill="none" stroke="#16a34a" stroke-width="0.8"/>
+    <text x="68" y="46" text-anchor="middle" font-family="Arial" font-size="8" font-weight="bold" fill="#15803d">₱500</text>
+  </g>
+  <!-- Bill right, tilted right -->
+  <g transform="rotate(18, 128, 48)">
+    <rect x="106" y="28" width="52" height="26" rx="3" fill="#86efac" stroke="#16a34a" stroke-width="1.2"/>
+    <rect x="110" y="32" width="44" height="18" rx="2" fill="none" stroke="#16a34a" stroke-width="0.8"/>
+    <text x="132" y="44" text-anchor="middle" font-family="Arial" font-size="8" font-weight="bold" fill="#15803d">₱100</text>
+  </g>
+  <!-- Bill center, slight tilt -->
+  <g transform="rotate(-5, 100, 44)">
+    <rect x="72" y="22" width="56" height="28" rx="3" fill="#bbf7d0" stroke="#16a34a" stroke-width="1.2"/>
+    <rect x="76" y="26" width="48" height="20" rx="2" fill="none" stroke="#16a34a" stroke-width="0.8"/>
+    <text x="100" y="40" text-anchor="middle" font-family="Arial" font-size="9" font-weight="bold" fill="#15803d">₱1000</text>
+  </g>
 
-  <!-- Jar shine -->
-  <path d="M62 70 Q60 100 60 130" stroke="white" stroke-width="4" stroke-linecap="round" opacity="0.6"/>
-  <path d="M70 64 Q67 80 67 95" stroke="white" stroke-width="2.5" stroke-linecap="round" opacity="0.4"/>
+  <!-- === OVERFLOW COINS spilling over the top === -->
+  <!-- Coins left side spilling out -->
+  <ellipse cx="66" cy="58" rx="10" ry="4" fill="#fbbf24" stroke="#d97706" stroke-width="1"/>
+  <rect x="56" y="54" width="20" height="8" fill="#f59e0b"/>
+  <ellipse cx="66" cy="54" rx="10" ry="4" fill="#fcd34d" stroke="#d97706" stroke-width="1"/>
+  <text x="66" y="57" text-anchor="middle" font-family="Arial" font-size="5.5" font-weight="bold" fill="#92400e">₱</text>
 
-  <!-- Coins stack inside jar -->
-  <ellipse cx="100" cy="182" rx="30" ry="7" fill="#fbbf24"/>
-  <rect x="70" y="168" width="60" height="14" rx="2" fill="#f59e0b"/>
-  <ellipse cx="100" cy="168" rx="30" ry="7" fill="#fbbf24"/>
+  <!-- Coins right side spilling out -->
+  <ellipse cx="134" cy="56" rx="10" ry="4" fill="#fbbf24" stroke="#d97706" stroke-width="1"/>
+  <rect x="124" y="52" width="20" height="8" fill="#f59e0b"/>
+  <ellipse cx="134" cy="52" rx="10" ry="4" fill="#fcd34d" stroke="#d97706" stroke-width="1"/>
+  <text x="134" y="55" text-anchor="middle" font-family="Arial" font-size="5.5" font-weight="bold" fill="#92400e">₱</text>
 
-  <ellipse cx="100" cy="158" rx="28" ry="6.5" fill="#fbbf24"/>
-  <rect x="72" y="145" width="56" height="13" rx="2" fill="#f59e0b"/>
-  <ellipse cx="100" cy="145" rx="28" ry="6.5" fill="#fbbf24"/>
+  <!-- Single coins scattered at top -->
+  <circle cx="85" cy="50" r="7" fill="#fcd34d" stroke="#d97706" stroke-width="1"/>
+  <text x="85" y="53" text-anchor="middle" font-family="Arial" font-size="6" font-weight="bold" fill="#92400e">₱</text>
+  <circle cx="115" cy="48" r="7" fill="#fbbf24" stroke="#d97706" stroke-width="1"/>
+  <text x="115" y="51" text-anchor="middle" font-family="Arial" font-size="6" font-weight="bold" fill="#92400e">₱</text>
+  <circle cx="100" cy="46" r="8" fill="#fde68a" stroke="#d97706" stroke-width="1.2"/>
+  <text x="100" y="50" text-anchor="middle" font-family="Arial" font-size="7" font-weight="bold" fill="#92400e">₱</text>
 
-  <ellipse cx="100" cy="135" rx="26" ry="6" fill="#fbbf24"/>
-  <rect x="74" y="123" width="52" height="12" rx="2" fill="#f59e0b"/>
-  <ellipse cx="100" cy="123" rx="26" ry="6" fill="#fbbf24"/>
+  <!-- === JAR LID === -->
+  <rect x="60" y="60" width="80" height="16" rx="5" fill="#0f766e"/>
+  <rect x="65" y="55" width="70" height="11" rx="5" fill="#14b8a6"/>
+  <!-- Lid highlight -->
+  <rect x="70" y="57" width="30" height="3" rx="2" fill="#5eead4" opacity="0.5"/>
 
-  <!-- Subtle J A R letters etched into the jar glass, like a label -->
-  <text x="100" y="105" text-anchor="middle" font-family="Georgia, serif" font-size="22" font-weight="bold" fill="#0f766e" opacity="0.25" letter-spacing="10">JAR</text>
+  <!-- === JAR BODY === -->
+  <path d="M58 76 Q50 90 50 108 L50 200 Q50 216 68 216 L132 216 Q150 216 150 200 L150 108 Q150 90 142 76 Z" fill="#ccfbf1" stroke="#0d9488" stroke-width="2.5"/>
 
-  <!-- Jar outline overlay for glass effect -->
-  <path d="M55 56 Q48 70 48 90 L48 190 Q48 208 66 208 L134 208 Q152 208 152 190 L152 90 Q152 70 145 56 Z" fill="none" stroke="#0d9488" stroke-width="3"/>
+  <!-- Jar glass shine -->
+  <path d="M63 88 Q61 120 61 150" stroke="white" stroke-width="5" stroke-linecap="round" opacity="0.5"/>
+  <path d="M72 82 Q70 100 70 118" stroke="white" stroke-width="3" stroke-linecap="round" opacity="0.3"/>
 
-  <!-- JAR wordmark -->
-  <text x="100" y="232" text-anchor="middle" font-family="Georgia, serif" font-size="28" font-weight="bold" fill="#0f766e" letter-spacing="6">JAR</text>
+  <!-- === COINS INSIDE JAR === -->
+  <!-- Bottom layer - coin stack 1 -->
+  <ellipse cx="100" cy="200" rx="32" ry="7.5" fill="#d97706"/>
+  <rect x="68" y="186" width="64" height="14" fill="#f59e0b"/>
+  <ellipse cx="100" cy="186" rx="32" ry="7.5" fill="#fbbf24" stroke="#d97706" stroke-width="1"/>
+  <text x="100" y="189" text-anchor="middle" font-family="Arial" font-size="7" font-weight="bold" fill="#92400e">₱ ₱ ₱</text>
 
-  <!-- Tagline -->
-  <text x="100" y="250" text-anchor="middle" font-family="Arial, sans-serif" font-size="7.5" fill="#6b7280" letter-spacing="2">D i a n e   &amp;   J o m a r   A y c a r d o</text>
+  <!-- Middle layer - coin stack 2 -->
+  <ellipse cx="100" cy="178" rx="30" ry="7" fill="#d97706"/>
+  <rect x="70" y="164" width="60" height="14" fill="#f59e0b"/>
+  <ellipse cx="100" cy="164" rx="30" ry="7" fill="#fcd34d" stroke="#d97706" stroke-width="1"/>
+  <text x="100" y="167" text-anchor="middle" font-family="Arial" font-size="7" font-weight="bold" fill="#92400e">₱ ₱ ₱</text>
+
+  <!-- Upper layer - coin stack 3 -->
+  <ellipse cx="100" cy="156" rx="28" ry="6.5" fill="#d97706"/>
+  <rect x="72" y="143" width="56" height="13" fill="#f59e0b"/>
+  <ellipse cx="100" cy="143" rx="28" ry="6.5" fill="#fbbf24" stroke="#d97706" stroke-width="1"/>
+  <text x="100" y="146" text-anchor="middle" font-family="Arial" font-size="7" font-weight="bold" fill="#92400e">₱ ₱ ₱</text>
+
+  <!-- Small bills rolled/folded inside jar -->
+  <g transform="rotate(-8, 80, 120)">
+    <rect x="62" y="112" width="36" height="18" rx="2" fill="#4ade80" stroke="#16a34a" stroke-width="1"/>
+    <rect x="65" y="115" width="30" height="12" rx="1" fill="none" stroke="#16a34a" stroke-width="0.7"/>
+    <text x="80" y="124" text-anchor="middle" font-family="Arial" font-size="6.5" font-weight="bold" fill="#15803d">₱500</text>
+  </g>
+  <g transform="rotate(6, 118, 118)">
+    <rect x="100" y="110" width="36" height="18" rx="2" fill="#86efac" stroke="#16a34a" stroke-width="1"/>
+    <rect x="103" y="113" width="30" height="12" rx="1" fill="none" stroke="#16a34a" stroke-width="0.7"/>
+    <text x="118" y="122" text-anchor="middle" font-family="Arial" font-size="6.5" font-weight="bold" fill="#15803d">₱100</text>
+  </g>
+
+  <!-- Jar outline overlay -->
+  <path d="M58 76 Q50 90 50 108 L50 200 Q50 216 68 216 L132 216 Q150 216 150 200 L150 108 Q150 90 142 76 Z" fill="none" stroke="#0d9488" stroke-width="2.5"/>
+
+  <!-- === JAR wordmark === -->
+  <text x="100" y="242" text-anchor="middle" font-family="Georgia, serif" font-size="30" font-weight="bold" fill="#0f766e" letter-spacing="8">JAR</text>
+
+  <!-- === Tagline === -->
+  <text x="100" y="260" text-anchor="middle" font-family="Arial, sans-serif" font-size="7" fill="#6b7280" letter-spacing="2">D i a n e   &amp;   J o m a r   A y c a r d o</text>
+
 </svg>
