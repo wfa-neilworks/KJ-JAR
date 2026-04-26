@@ -180,7 +180,10 @@ export default function DashboardSettle() {
   const { data: loans = [], isLoading } = useSettleLoans()
 
   const activeLoans = loans.filter((l) => l.status === 'active')
-  const totalLent = activeLoans.reduce((s, l) => s + Number(l.principal), 0)
+  const totalLent = activeLoans.reduce((s, l) => {
+    const paid = (l.payments || []).reduce((ps, p) => ps + Number(p.amount), 0)
+    return s + Math.max(0, Number(l.principal) - paid)
+  }, 0)
   const activeCount = activeLoans.length
 
   return (
