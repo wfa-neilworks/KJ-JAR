@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 260" fill="none">
+  <!-- Jar lid -->
+  <rect x="62" y="38" width="76" height="18" rx="6" fill="#0f766e"/>
+  <rect x="68" y="32" width="64" height="12" rx="5" fill="#14b8a6"/>
+
+  <!-- Jar body -->
+  <path d="M55 56 Q48 70 48 90 L48 190 Q48 208 66 208 L134 208 Q152 208 152 190 L152 90 Q152 70 145 56 Z" fill="#ccfbf1" stroke="#0d9488" stroke-width="3"/>
+
+  <!-- Jar shine -->
+  <path d="M62 70 Q60 100 60 130" stroke="white" stroke-width="4" stroke-linecap="round" opacity="0.6"/>
+  <path d="M70 64 Q67 80 67 95" stroke="white" stroke-width="2.5" stroke-linecap="round" opacity="0.4"/>
+
+  <!-- Coins stack inside jar -->
+  <ellipse cx="100" cy="182" rx="30" ry="7" fill="#fbbf24"/>
+  <rect x="70" y="168" width="60" height="14" rx="2" fill="#f59e0b"/>
+  <ellipse cx="100" cy="168" rx="30" ry="7" fill="#fbbf24"/>
+
+  <ellipse cx="100" cy="158" rx="28" ry="6.5" fill="#fbbf24"/>
+  <rect x="72" y="145" width="56" height="13" rx="2" fill="#f59e0b"/>
+  <ellipse cx="100" cy="145" rx="28" ry="6.5" fill="#fbbf24"/>
+
+  <ellipse cx="100" cy="135" rx="26" ry="6" fill="#fbbf24"/>
+  <rect x="74" y="123" width="52" height="12" rx="2" fill="#f59e0b"/>
+  <ellipse cx="100" cy="123" rx="26" ry="6" fill="#fbbf24"/>
+
+  <!-- Subtle J A R letters etched into the jar glass, like a label -->
+  <text x="100" y="105" text-anchor="middle" font-family="Georgia, serif" font-size="22" font-weight="bold" fill="#0f766e" opacity="0.25" letter-spacing="10">JAR</text>
+
+  <!-- Jar outline overlay for glass effect -->
+  <path d="M55 56 Q48 70 48 90 L48 190 Q48 208 66 208 L134 208 Q152 208 152 190 L152 90 Q152 70 145 56 Z" fill="none" stroke="#0d9488" stroke-width="3"/>
+
+  <!-- JAR wordmark -->
+  <text x="100" y="232" text-anchor="middle" font-family="Georgia, serif" font-size="28" font-weight="bold" fill="#0f766e" letter-spacing="6">JAR</text>
+
+  <!-- Tagline -->
+  <text x="100" y="250" text-anchor="middle" font-family="Arial, sans-serif" font-size="7.5" fill="#6b7280" letter-spacing="2">D i a n e   &amp;   J o m a r   A y c a r d o</text>
+</svg>
