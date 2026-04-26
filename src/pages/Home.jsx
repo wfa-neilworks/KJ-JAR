@@ -314,22 +314,41 @@ export default function Home() {
   const { data: payments = [], isLoading } = useUpcomingPayments()
   const markPaid = useMarkPaid()
   const [selected, setSelected] = useState(null)
+  const [filter, setFilter] = useState('all')
 
-  const sorted = [...payments].sort((a, b) => {
-    const da = getDayDiff(a.due_date)
-    const db = getDayDiff(b.due_date)
-    return da - db
-  })
+  const sorted = [...payments]
+    .filter((p) => filter === 'all' || p.loan?.type === filter)
+    .sort((a, b) => getDayDiff(a.due_date) - getDayDiff(b.due_date))
 
   return (
     <PageWrapper title="Collections">
+      <div className="flex gap-2 mb-3">
+        {[
+          { value: 'all', label: 'All' },
+          { value: 'monthly', label: 'Monthly' },
+          { value: 'weekly', label: 'Weekly' },
+        ].map((f) => (
+          <button
+            key={f.value}
+            onClick={() => setFilter(f.value)}
+            className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${
+              filter === f.value ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 border border-gray-200'
+            }`}
+          >
+            {f.label}
+          </button>
+        ))}
+      </div>
+
       {isLoading ? (
         <p className="text-center text-gray-400 py-10">Loading...</p>
       ) : sorted.length === 0 ? (
         <div className="text-center py-16">
           <CheckCircle size={48} className="text-green-400 mx-auto mb-3" />
           <p className="font-medium text-gray-700">All clear!</p>
-          <p className="text-sm text-gray-400 mt-1">No collections due in the next 3 days.</p>
+          <p className="text-sm text-gray-400 mt-1">
+            {filter === 'all' ? 'No collections due in the next 3 days.' : `No ${filter} collections due.`}
+          </p>
         </div>
       ) : (
         <div className="flex flex-col gap-2">
