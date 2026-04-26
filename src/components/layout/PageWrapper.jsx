@@ -3,14 +3,7 @@ export default function PageWrapper({ title, children, action }) {
     <div className="flex flex-col min-h-screen bg-gray-50 w-full">
       <header className="sticky top-0 z-40 bg-white border-b border-gray-200 px-4 sm:px-6 py-2 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          {/* Jar icon — crop to show only the jar, hide the text below */}
-          <div className="w-9 h-9 overflow-hidden shrink-0">
-            <img
-              src="/JAR-LOGO.png"
-              alt="JAR"
-              className="w-[72px] h-[72px] object-cover object-top -translate-x-[17px]"
-            />
-          </div>
+          <img src="/JAR-LOGO-CROPPED.png" alt="JAR" className="h-9 w-auto shrink-0" />
           <h1 className="text-lg font-semibold text-gray-900">{title}</h1>
         </div>
         {action && <div>{action}</div>}
