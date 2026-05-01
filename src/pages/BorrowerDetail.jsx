@@ -402,13 +402,15 @@ function LoanCard({ loan }) {
               >
                 <Trash2 size={13} /> Delete
               </button>
-              <button
-                onClick={(e) => { e.stopPropagation(); setEditLoan(true) }}
-                className="p-1.5 rounded-full hover:bg-gray-100 text-gray-400 hover:text-gray-700 flex items-center gap-1 text-xs"
-                title="Edit loan"
-              >
-                <Pencil size={13} /> Edit loan
-              </button>
+              {(loan.type !== 'weekly' || paidCount === 0) && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); setEditLoan(true) }}
+                  className="p-1.5 rounded-full hover:bg-gray-100 text-gray-400 hover:text-gray-700 flex items-center gap-1 text-xs"
+                  title="Edit loan"
+                >
+                  <Pencil size={13} /> Edit loan
+                </button>
+              )}
               {canRenew && (
                 <button
                   onClick={(e) => { e.stopPropagation(); setRenewing(true) }}
@@ -440,9 +442,25 @@ function LoanCard({ loan }) {
                 const isLapsed = p.collection_type === 'lapsed' && p.paid_at
                 const isUnpaidLapseFee = p.is_lapse_fee && !p.paid_at
                 const rowBg = p.paid_at && !isLapsed ? 'bg-green-50' : isLapsed ? 'bg-red-50' : isUnpaidLapseFee ? 'bg-yellow-50' : 'bg-gray-50'
-                const label = p.is_lapse_fee
-                  ? 'Unpaid Interest (Lapse)'
-                  : loan.type === 'weekly' ? `Week ${p.week_number}` : `Payment #${p.week_number}`
+
+                // For weekly loans, label relative to the last renewal marker
+                let label
+                if (p.is_lapse_fee) {
+                  label = 'Unpaid Interest (Lapse)'
+                } else if (loan.type === 'weekly') {
+                  const renewalMarkers = loan.payments
+                    .filter((r) => r.is_renewal_marker)
+                    .sort((a, b) => a.week_number - b.week_number)
+                  const renewalsBefore = renewalMarkers.filter((r) => r.week_number < p.week_number).length
+                  if (renewalsBefore === 0) {
+                    label = `Week ${p.week_number}`
+                  } else {
+                    const lastMarkerWeek = renewalMarkers[renewalsBefore - 1].week_number
+                    label = `R${renewalsBefore}-Week ${p.week_number - lastMarkerWeek}`
+                  }
+                } else {
+                  label = `Payment #${p.week_number}`
+                }
                 return (
                   <div
                     key={p.id}
