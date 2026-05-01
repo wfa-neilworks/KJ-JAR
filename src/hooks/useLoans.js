@@ -56,7 +56,7 @@ export function useEditLoan() {
 export function useEditPayment() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async ({ id, amount_due, amount_paid, due_date, loan, week_number }) => {
+    mutationFn: async ({ id, amount_due, amount_paid, due_date, note, loan, week_number }) => {
       const rate = Number(loan.interest_rate)
       const interest = Number(loan.principal) * (rate / 100)
 
@@ -71,7 +71,7 @@ export function useEditPayment() {
       }
 
       // Save the edited payment
-      const updates = { amount_due, due_date }
+      const updates = { amount_due, due_date, note: note ?? null }
       if (amount_paid !== null && amount_paid !== undefined) {
         updates.amount_paid = amount_paid
         updates.collection_type = collection_type

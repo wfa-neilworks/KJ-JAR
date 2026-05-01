@@ -155,6 +155,7 @@ function EditPaymentModal({ payment, loan, onClose }) {
   const [amountDue, setAmountDue] = useState(payment.amount_due)
   const [amountPaid, setAmountPaid] = useState(payment.amount_paid ?? '')
   const [dueDate, setDueDate] = useState(payment.due_date)
+  const [note, setNote] = useState(payment.note || '')
 
   const principal = Number(loan.principal)
   const rate = Number(loan.interest_rate)
@@ -178,6 +179,7 @@ function EditPaymentModal({ payment, loan, onClose }) {
         amount_due: parseFloat(amountDue),
         amount_paid: payment.paid_at ? parseFloat(amountPaid) : undefined,
         due_date: dueDate,
+        note: note || null,
         loan,
         week_number: payment.week_number,
       })
@@ -228,6 +230,16 @@ function EditPaymentModal({ payment, loan, onClose }) {
           )}
         </div>
       )}
+      <div className="flex flex-col gap-1">
+        <label className="text-sm font-medium text-gray-700">Note <span className="text-gray-400 font-normal">(optional)</span></label>
+        <textarea
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          placeholder="e.g. Paid at home..."
+          rows={2}
+          className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+        />
+      </div>
       <Button type="submit" size="full" disabled={editPayment.isPending}>
         {editPayment.isPending ? 'Saving...' : 'Save Changes'}
       </Button>
