@@ -1,13 +1,13 @@
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Phone, MapPin, Link, Shield, Pencil, ChevronDown, ChevronUp, Trash2 } from 'lucide-react'
+import { ArrowLeft, Phone, MapPin, Link, Shield, Pencil, ChevronDown, ChevronUp, Trash2, RefreshCw } from 'lucide-react'
 import { format } from 'date-fns'
 import PageWrapper from '@/components/layout/PageWrapper'
 import Modal from '@/components/ui/Modal'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import { useBorrowers, useEditBorrower } from '@/hooks/useBorrowers'
-import { useLoansByBorrower, useEditLoan, useEditPayment, useDeleteLoan } from '@/hooks/useLoans'
+import { useLoansByBorrower, useEditLoan, useEditPayment, useDeleteLoan, useRenewLoan } from '@/hooks/useLoans'
 import { useSettleLoansByBorrower, useDeleteSettleLoan, useDeleteSettlePayment } from '@/hooks/useSettle'
 import { useCollectLapseFee } from '@/hooks/usePayments'
 import { useToast } from '@/components/ui/Toast'
@@ -231,6 +231,72 @@ function EditPaymentModal({ payment, loan, onClose }) {
   )
 }
 
+function RenewLoanModal({ loan, onClose }) {
+  const toast = useToast()
+  const renewLoan = useRenewLoan()
+  const [newPrincipal, setNewPrincipal] = useState(String(loan.principal))
+
+  const submit = async (e) => {
+    e.preventDefault()
+    const amt = parseFloat(newPrincipal)
+    if (!amt || amt <= 0) return
+    try {
+      await renewLoan.mutateAsync({
+        loanId: loan.id,
+        newPrincipal: amt,
+        oldPrincipal: Number(loan.principal),
+        interestRate: Number(loan.interest_rate),
+      })
+      toast({ message: 'Loan renewed!', type: 'success' })
+      onClose()
+    } catch {
+      toast({ message: 'Failed to renew loan', type: 'error' })
+    }
+  }
+
+  const oldInterest = Number(loan.principal) * (Number(loan.interest_rate) / 100)
+  const newTotal = parseFloat(newPrincipal) * 1.20
+  const newWeekly = newTotal / 6
+
+  return (
+    <form onSubmit={submit} className="flex flex-col gap-4">
+      <div className="bg-purple-50 border border-purple-200 rounded-xl px-4 py-3 text-sm flex flex-col gap-1.5">
+        <p className="font-semibold text-purple-700 mb-0.5">What happens on renewal:</p>
+        <p className="text-purple-600">• Remaining unpaid weeks are wiped</p>
+        <p className="text-purple-600">• <span className="font-medium">{formatPeso(oldInterest)}</span> interest booked as profit</p>
+        <p className="text-purple-600">• 6 new weekly payments generated from today</p>
+      </div>
+
+      <Input
+        label="New Capital (PHP)"
+        type="number"
+        min="1"
+        step="0.01"
+        value={newPrincipal}
+        onChange={(e) => setNewPrincipal(e.target.value)}
+      />
+
+      {!isNaN(newTotal) && parseFloat(newPrincipal) > 0 && (
+        <div className="bg-gray-50 rounded-xl px-4 py-3 text-sm flex flex-col gap-1.5">
+          <div className="flex justify-between">
+            <span className="text-gray-500">Total Due (20%)</span>
+            <span className="font-semibold text-gray-900">{formatPeso(newTotal)}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-gray-500">Weekly Payment</span>
+            <span className="font-semibold text-gray-900">{formatPeso(newWeekly)}</span>
+          </div>
+        </div>
+      )}
+
+      <Button type="submit" size="full" disabled={renewLoan.isPending}>
+        {renewLoan.isPending ? 'Renewing...' : 'Confirm Renewal'}
+      </Button>
+      <Button variant="ghost" size="full" type="button" onClick={onClose}>Cancel</Button>
+    </form>
+  )
+}
+
 function LoanCard({ loan }) {
   const toast = useToast()
   const collectLapseFee = useCollectLapseFee()
@@ -240,6 +306,10 @@ function LoanCard({ loan }) {
   const [editPayment, setEditPayment] = useState(null)
   const [collectingLapseFee, setCollectingLapseFee] = useState(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [renewing, setRenewing] = useState(false)
+
+  const paidPayments = loan.payments?.filter((p) => p.paid_at && !p.is_renewal_marker) || []
+  const canRenew = loan.type === 'weekly' && loan.status === 'active' && paidPayments.length >= 1
 
   const handleCollectLapseFee = async () => {
     try {
@@ -266,8 +336,8 @@ function LoanCard({ loan }) {
     }
   }
 
-  const paidCount = loan.payments?.filter((p) => p.paid_at).length || 0
-  const totalCount = loan.payments?.length || 0
+  const paidCount = paidPayments.length
+  const totalCount = loan.payments?.filter((p) => !p.is_renewal_marker).length || 0
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
@@ -317,12 +387,21 @@ function LoanCard({ loan }) {
                 <Trash2 size={13} /> Delete
               </button>
               <button
-              onClick={(e) => { e.stopPropagation(); setEditLoan(true) }}
-              className="p-1.5 rounded-full hover:bg-gray-100 text-gray-400 hover:text-gray-700 flex items-center gap-1 text-xs"
-              title="Edit loan"
-            >
-              <Pencil size={13} /> Edit loan
-            </button>
+                onClick={(e) => { e.stopPropagation(); setEditLoan(true) }}
+                className="p-1.5 rounded-full hover:bg-gray-100 text-gray-400 hover:text-gray-700 flex items-center gap-1 text-xs"
+                title="Edit loan"
+              >
+                <Pencil size={13} /> Edit loan
+              </button>
+              {canRenew && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); setRenewing(true) }}
+                  className="p-1.5 rounded-full hover:bg-purple-50 text-gray-400 hover:text-purple-600 flex items-center gap-1 text-xs"
+                  title="Renew loan"
+                >
+                  <RefreshCw size={13} /> Renew
+                </button>
+              )}
             </div>
           </div>
 
@@ -331,6 +410,17 @@ function LoanCard({ loan }) {
             <div className="flex flex-col gap-1.5">
               <p className="text-xs font-medium text-gray-600 uppercase tracking-wide">Payments</p>
               {loan.payments.map((p) => {
+                // Renewal marker — show as a special divider row
+                if (p.is_renewal_marker) {
+                  return (
+                    <div key={p.id} className="flex items-center gap-2 py-2 px-3 rounded-lg bg-purple-50 border border-purple-200">
+                      <RefreshCw size={13} className="text-purple-500 shrink-0" />
+                      <span className="text-sm font-semibold text-purple-700">Loan Renewed</span>
+                      <span className="text-xs text-purple-500 ml-auto">{format(new Date(p.paid_at), 'MMM d, yyyy')}</span>
+                    </div>
+                  )
+                }
+
                 const isLapsed = p.collection_type === 'lapsed' && p.paid_at
                 const isUnpaidLapseFee = p.is_lapse_fee && !p.paid_at
                 const rowBg = p.paid_at && !isLapsed ? 'bg-green-50' : isLapsed ? 'bg-red-50' : isUnpaidLapseFee ? 'bg-yellow-50' : 'bg-gray-50'
@@ -439,6 +529,11 @@ function LoanCard({ loan }) {
       {/* Edit Loan Modal */}
       <Modal open={editLoan} onClose={() => setEditLoan(false)} title="Edit Loan">
         <EditLoanModal loan={loan} onClose={() => setEditLoan(false)} />
+      </Modal>
+
+      {/* Renew Loan Modal */}
+      <Modal open={renewing} onClose={() => setRenewing(false)} title="Renew Loan">
+        <RenewLoanModal loan={loan} onClose={() => setRenewing(false)} />
       </Modal>
 
       {/* Edit Payment Modal */}

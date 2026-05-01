@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { generatePayments } from '@/lib/loanUtils'
+import { addDays, format } from 'date-fns'
 
 export function useLoans(type) {
   return useQuery({
@@ -186,6 +187,73 @@ export function useCreateLoan() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['loans'] })
       qc.invalidateQueries({ queryKey: ['payments'] })
+    },
+  })
+}
+
+export function useRenewLoan() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ loanId, newPrincipal, oldPrincipal, interestRate }) => {
+      const now = new Date().toISOString()
+      const interest = oldPrincipal * (interestRate / 100)
+
+      // 1. Get all payment rows for this loan
+      const { data: allRows, error: fetchErr } = await supabase
+        .from('payments')
+        .select('id, week_number, paid_at')
+        .eq('loan_id', loanId)
+        .order('week_number', { ascending: true })
+      if (fetchErr) throw fetchErr
+
+      const maxWeek = allRows.reduce((m, r) => Math.max(m, r.week_number), 0)
+      const unpaidIds = allRows.filter((r) => !r.paid_at).map((r) => r.id)
+
+      // 2. Delete all unpaid rows
+      if (unpaidIds.length > 0) {
+        const { error: delErr } = await supabase
+          .from('payments')
+          .delete()
+          .in('id', unpaidIds)
+        if (delErr) throw delErr
+      }
+
+      // 3. Insert renewal marker row — paid immediately, books the interest as profit
+      const { error: markerErr } = await supabase.from('payments').insert({
+        loan_id: loanId,
+        week_number: maxWeek + 1,
+        amount_due: interest,
+        amount_paid: interest,
+        paid_at: now,
+        collection_type: 'complete',
+        is_renewal_marker: true,
+        due_date: format(new Date(), 'yyyy-MM-dd'),
+      })
+      if (markerErr) throw markerErr
+
+      // 4. Insert 6 new weekly payment rows from today using the new principal
+      const weeklyAmount = newPrincipal * 1.20 / 6
+      const newRows = Array.from({ length: 6 }, (_, i) => ({
+        loan_id: loanId,
+        week_number: maxWeek + 2 + i,
+        amount_due: weeklyAmount,
+        due_date: format(addDays(new Date(), (i + 1) * 7), 'yyyy-MM-dd'),
+      }))
+      const { error: insertErr } = await supabase.from('payments').insert(newRows)
+      if (insertErr) throw insertErr
+
+      // 5. Update the loan's principal and total_due to the new capital
+      const newTotalDue = newPrincipal * 1.20
+      const { error: loanErr } = await supabase
+        .from('loans')
+        .update({ principal: newPrincipal, total_due: newTotalDue })
+        .eq('id', loanId)
+      if (loanErr) throw loanErr
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['loans'] })
+      qc.invalidateQueries({ queryKey: ['payments'] })
+      qc.invalidateQueries({ queryKey: ['dashboard-stats'] })
     },
   })
 }

@@ -162,6 +162,9 @@ function interestPortion(payment) {
   // Lapse fee row — profit only when actually collected (paid_at set)
   if (payment.is_lapse_fee) return Number(payment.amount_due)
 
+  // Renewal marker — books the full interest of the old cycle as profit
+  if (payment.is_renewal_marker) return Number(payment.amount_due)
+
   const principal = Number(loan.principal)
   const rate = Number(loan.interest_rate)
   const interest = principal * (rate / 100)
@@ -176,7 +179,7 @@ function interestPortion(payment) {
 async function fetchPaidWithLastFlag() {
   const { data, error } = await supabase
     .from('payments')
-    .select('loan_id, week_number, paid_at, amount_due, amount_paid, collection_type, is_lapse_fee, loan:loans(type, principal, interest_rate)')
+    .select('loan_id, week_number, paid_at, amount_due, amount_paid, collection_type, is_lapse_fee, is_renewal_marker, loan:loans(type, principal, interest_rate)')
     .not('paid_at', 'is', null)
   if (error) throw error
 
