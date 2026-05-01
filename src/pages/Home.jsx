@@ -7,6 +7,7 @@ import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import FAB from '@/components/layout/FAB'
 import { useUpcomingPayments, useMarkPaid } from '@/hooks/usePayments'
+import { useRenewLoan } from '@/hooks/useLoans'
 import { useToast } from '@/components/ui/Toast'
 import { formatPeso } from '@/lib/loanUtils'
 import { cn } from '@/lib/utils'
@@ -62,8 +63,10 @@ const confirmLabels = {
 
 function CollectionModal({ selected, payments, onClose, markPaid }) {
   const toast = useToast()
-  const [step, setStep] = useState('choose') // 'choose' | 'partial' | 'confirm'
+  const renewLoan = useRenewLoan()
+  const [step, setStep] = useState('choose') // 'choose' | 'partial' | 'renew' | 'confirm'
   const [partialAmount, setPartialAmount] = useState('')
+  const [renewPrincipal, setRenewPrincipal] = useState('')
   const [note, setNote] = useState('')
   const [pendingType, setPendingType] = useState(null)
 
@@ -71,10 +74,13 @@ function CollectionModal({ selected, payments, onClose, markPaid }) {
 
   const loan = selected.loan
   const isMonthly = loan?.type === 'monthly'
+  const isWeekly = loan?.type === 'weekly'
   const principal = Number(loan?.principal || 0)
   const rate = Number(loan?.interest_rate || 0)
   const interest = principal * (rate / 100)
   const amountDue = Number(selected.amount_due)
+  // Renew only available for weekly loans where at least 1 prior payment exists (week_number > 1)
+  const canRenew = isWeekly && selected.week_number > 1
 
   const requestConfirm = (collectionType) => {
     if (collectionType === 'partial') {
@@ -86,6 +92,23 @@ function CollectionModal({ selected, payments, onClose, markPaid }) {
     }
     setPendingType(collectionType)
     setStep('confirm')
+  }
+
+  const handleRenew = async () => {
+    const amt = parseFloat(renewPrincipal)
+    if (!amt || amt <= 0) return
+    try {
+      await renewLoan.mutateAsync({
+        loanId: selected.loan_id,
+        newPrincipal: amt,
+        oldPrincipal: principal,
+        interestRate: rate,
+      })
+      toast({ message: 'Loan renewed!', type: 'success' })
+      onClose()
+    } catch {
+      toast({ message: 'Failed to renew loan', type: 'error' })
+    }
   }
 
   const handleCollect = async () => {
@@ -158,11 +181,25 @@ function CollectionModal({ selected, payments, onClose, markPaid }) {
             onClick={() => requestConfirm('complete')}
             className="w-full text-left rounded-xl border-2 border-green-200 bg-green-50 px-4 py-3 hover:border-green-400 transition-colors"
           >
-            <p className="font-semibold text-green-700">Complete Collection</p>
+            <p className="font-semibold text-green-700">
+              {isWeekly ? `Collect Week ${selected.week_number}` : 'Complete Collection'}
+            </p>
             <p className="text-sm text-green-600 mt-0.5">
-              Collect full {formatPeso(amountDue)} — loan cleared
+              Collect full {formatPeso(amountDue)}{isWeekly ? '' : ' — loan cleared'}
             </p>
           </button>
+
+          {canRenew && (
+            <button
+              onClick={() => { setRenewPrincipal(String(principal)); setStep('renew') }}
+              className="w-full text-left rounded-xl border-2 border-purple-200 bg-purple-50 px-4 py-3 hover:border-purple-400 transition-colors"
+            >
+              <p className="font-semibold text-purple-700">Renew Loan</p>
+              <p className="text-sm text-purple-600 mt-0.5">
+                Wipe remaining weeks — set new capital and restart 6 weeks from today
+              </p>
+            </button>
+          )}
 
           {isMonthly && (
             <button
@@ -212,6 +249,44 @@ function CollectionModal({ selected, payments, onClose, markPaid }) {
           </div>
 
           <Button variant="ghost" size="full" onClick={onClose}>Cancel</Button>
+        </div>
+      )}
+
+      {step === 'renew' && (
+        <div className="flex flex-col gap-4">
+          <div className="rounded-xl border border-purple-200 bg-purple-50 px-4 py-3">
+            <p className="text-sm font-semibold text-purple-700 mb-1">Renew Loan</p>
+            <p className="text-xs text-purple-600">
+              Remaining unpaid weeks will be wiped. Full interest ({formatPeso(interest)}) booked as profit. 6 new weekly payments start from today.
+            </p>
+          </div>
+
+          <Input
+            label="New Capital (PHP)"
+            type="number"
+            min="1"
+            step="0.01"
+            value={renewPrincipal}
+            onChange={(e) => setRenewPrincipal(e.target.value)}
+          />
+
+          {renewPrincipal && parseFloat(renewPrincipal) > 0 && (
+            <div className="bg-gray-50 rounded-xl p-3 flex flex-col gap-1.5 text-sm">
+              <div className="flex justify-between">
+                <span className="text-gray-500">Total Due (20%)</span>
+                <span className="font-semibold text-gray-900">{formatPeso(parseFloat(renewPrincipal) * 1.20)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">Weekly Payment</span>
+                <span className="font-semibold text-gray-900">{formatPeso(parseFloat(renewPrincipal) * 1.20 / 6)}</span>
+              </div>
+            </div>
+          )}
+
+          <Button size="full" onClick={handleRenew} disabled={renewLoan.isPending}>
+            {renewLoan.isPending ? 'Renewing...' : 'Confirm Renewal'}
+          </Button>
+          <Button variant="ghost" size="full" onClick={() => setStep('choose')}>Back</Button>
         </div>
       )}
 

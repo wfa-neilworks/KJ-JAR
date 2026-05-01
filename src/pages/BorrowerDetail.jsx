@@ -188,23 +188,27 @@ function EditPaymentModal({ payment, loan, onClose }) {
     }
   }
 
+  const isWeekly = loan.type === 'weekly'
+
   return (
     <form onSubmit={submit} className="flex flex-col gap-4">
-      <Input
-        label="Amount Due (PHP)"
-        type="number"
-        min="1"
-        step="0.01"
-        value={amountDue}
-        onChange={(e) => setAmountDue(e.target.value)}
-      />
+      {!isWeekly && (
+        <Input
+          label="Amount Due (PHP)"
+          type="number"
+          min="1"
+          step="0.01"
+          value={amountDue}
+          onChange={(e) => setAmountDue(e.target.value)}
+        />
+      )}
       <Input
         label="Due Date"
         type="date"
         value={dueDate}
         onChange={(e) => setDueDate(e.target.value)}
       />
-      {payment.paid_at && (
+      {payment.paid_at && !isWeekly && (
         <div className="flex flex-col gap-1">
           <Input
             label="Amount Paid (PHP)"
@@ -447,7 +451,7 @@ function LoanCard({ loan }) {
                         <span className={`font-semibold ${p.paid_at && !isLapsed ? 'text-green-600' : isLapsed ? 'text-red-500' : isUnpaidLapseFee ? 'text-yellow-700' : 'text-gray-800'}`}>
                           {formatPeso(p.amount_due)}
                         </span>
-                        {!isUnpaidLapseFee && (
+                        {p.paid_at && !isUnpaidLapseFee && (
                           <button
                             onClick={(e) => { e.stopPropagation(); setEditPayment(p) }}
                             className="p-1 rounded-full hover:bg-white text-gray-400 hover:text-gray-700"
