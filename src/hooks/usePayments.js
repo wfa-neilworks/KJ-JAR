@@ -257,7 +257,7 @@ export function useDashboardStats(type) {
       // Get all payment rows for active loans (paid and unpaid) to compute stats
       const { data: allRows, error: uErr } = await supabase
         .from('payments')
-        .select('loan_id, amount_due, amount_paid, collection_type, paid_at, week_number')
+        .select('loan_id, amount_due, amount_paid, collection_type, paid_at, week_number, is_renewal_marker')
         .in('loan_id', activeLoanIds)
       if (uErr) throw uErr
 
@@ -268,8 +268,18 @@ export function useDashboardStats(type) {
           maxWeek[r.loan_id] = r.week_number
       })
 
+      // For renewed weekly loans: find the week_number of the latest renewal marker per loan.
+      // Only rows AFTER that week count as capital recovery for the current cycle.
+      const renewalWeek = {}
+      allRows.forEach((r) => {
+        if (r.is_renewal_marker) {
+          if (!renewalWeek[r.loan_id] || r.week_number > renewalWeek[r.loan_id])
+            renewalWeek[r.loan_id] = r.week_number
+        }
+      })
+
       const unpaidRows = allRows.filter((r) => !r.paid_at)
-      const paidRows = allRows.filter((r) => r.paid_at)
+      const paidRows = allRows.filter((r) => r.paid_at && !r.is_renewal_marker)
 
       // Outstanding = sum of remaining unpaid amount_due
       const outstanding = unpaidRows.reduce((s, p) => s + Number(p.amount_due), 0)
@@ -279,8 +289,8 @@ export function useDashboardStats(type) {
       //   interest_only: no capital recovered (borrower still owes full principal)
       //   partial: capital recovered = amount_paid - interest (interest = principal * rate%)
       //   complete: loan closed, not in active loans anymore
-      // Weekly — principal minus amount_due of each paid payment except the last
-      //          (last payment is pure interest, not capital recovery)
+      // Weekly — principal minus amount_due of each paid payment except the last,
+      //          but only counting rows from the CURRENT cycle (after the latest renewal marker)
       let totalLent
       const rateMap = {}
       loans.forEach((l) => { rateMap[l.id] = Number(l.interest_rate) })
@@ -298,7 +308,13 @@ export function useDashboardStats(type) {
         totalLent = Math.max(0, loans.reduce((s, l) => s + Number(l.principal), 0) - capitalRecovered)
       } else {
         const totalPaidCapital = paidRows
-          .filter((p) => p.week_number !== maxWeek[p.loan_id])
+          .filter((p) => {
+            // Exclude last payment (pure interest, not capital)
+            if (p.week_number === maxWeek[p.loan_id]) return false
+            // Exclude rows from before/at the renewal marker (old cycle)
+            if (renewalWeek[p.loan_id] && p.week_number <= renewalWeek[p.loan_id]) return false
+            return true
+          })
           .reduce((s, p) => s + Number(p.amount_due), 0)
         totalLent = Math.max(0, loans.reduce((s, l) => s + Number(l.principal), 0) - totalPaidCapital)
       }
