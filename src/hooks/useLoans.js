@@ -214,6 +214,7 @@ export function useCreateLoan() {
           interest_rate: loanData.interest_rate,
           total_due: loanData.total_due,
           loan_date: loanData.loan_date,
+          commission_rate: loanData.commission_rate || null,
           status: 'active',
         })
         .select()

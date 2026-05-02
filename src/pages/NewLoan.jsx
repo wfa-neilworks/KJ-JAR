@@ -26,6 +26,8 @@ export default function NewLoan() {
     type: '',
     interest_rate: '',
     weeks: 6,
+    commission: false,
+    commission_rate: null,
     loan_date: format(new Date(), 'yyyy-MM-dd'),
   })
   const [errors, setErrors] = useState({})
@@ -46,12 +48,15 @@ export default function NewLoan() {
     const rate = form.type === 'weekly' ? 20 : parseFloat(form.interest_rate)
     if (!rate) return null
     const total = calcTotalDue(p, rate)
+    const grossInterest = p * (rate / 100)
+    const commissionAmt = form.commission && form.commission_rate ? grossInterest * (form.commission_rate / 100) : 0
+    const netProfit = grossInterest - commissionAmt
     if (form.type === 'weekly') {
       const weekly = calcWeeklyAmount(p, form.weeks)
-      return { total, weekly, weeks: form.weeks }
+      return { total, weekly, weeks: form.weeks, grossInterest, commissionAmt, netProfit }
     }
-    return { total }
-  }, [form.principal, form.type, form.interest_rate, form.weeks])
+    return { total, grossInterest, commissionAmt, netProfit }
+  }, [form.principal, form.type, form.interest_rate, form.weeks, form.commission, form.commission_rate])
 
   const validate = () => {
     const e = {}
@@ -59,6 +64,7 @@ export default function NewLoan() {
     if (!form.principal || parseFloat(form.principal) <= 0) e.principal = 'Enter a valid amount'
     if (!form.type) e.type = 'Select a loan term'
     if (form.type === 'monthly' && !form.interest_rate) e.interest_rate = 'Select interest rate'
+    if ((form.type === 'weekly' || form.type === 'monthly') && form.commission && !form.commission_rate) e.commission_rate = 'Select a commission rate'
     if (!form.loan_date) e.loan_date = 'Pick a loan date'
     setErrors(e)
     return Object.keys(e).length === 0
@@ -88,6 +94,7 @@ export default function NewLoan() {
           total_due,
           loan_date: form.loan_date,
           weeks: form.type === 'weekly' ? form.weeks : undefined,
+          commission_rate: form.commission ? form.commission_rate : null,
         })
         toast({ message: 'Loan created successfully!', type: 'success' })
         navigate('/')
@@ -243,6 +250,43 @@ export default function NewLoan() {
           </div>
         )}
 
+        {/* MM Commission — weekly and monthly only */}
+        {(form.type === 'weekly' || form.type === 'monthly') && (
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium text-gray-700">MM Commission</span>
+              <button
+                type="button"
+                onClick={() => setForm((f) => ({ ...f, commission: !f.commission, commission_rate: !f.commission ? null : f.commission_rate }))}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${form.commission ? 'bg-blue-600' : 'bg-gray-300'}`}
+              >
+                <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${form.commission ? 'translate-x-6' : 'translate-x-1'}`} />
+              </button>
+            </div>
+            {form.commission && (
+              <div className="flex gap-2">
+                {[5, 10].map((r) => (
+                  <button
+                    key={r}
+                    type="button"
+                    onClick={() => setForm((f) => ({ ...f, commission_rate: r }))}
+                    className={`flex-1 py-2 rounded-lg border text-sm font-medium transition-colors ${
+                      form.commission_rate === r
+                        ? 'bg-blue-600 text-white border-blue-600'
+                        : 'bg-white text-gray-600 border-gray-300 hover:border-blue-400'
+                    }`}
+                  >
+                    {r}%
+                  </button>
+                ))}
+              </div>
+            )}
+            {form.commission && !form.commission_rate && (
+              <span className="text-xs text-red-500">Select a commission rate</span>
+            )}
+          </div>
+        )}
+
         {/* Loan date */}
         <Input
           label="Loan Date *"
@@ -269,6 +313,23 @@ export default function NewLoan() {
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">Duration</span>
                   <span className="text-gray-700">{preview.weeks} weeks</span>
+                </div>
+              </>
+            )}
+            {form.commission && form.commission_rate && (
+              <>
+                <div className="border-t border-blue-200 my-1" />
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Gross Interest</span>
+                  <span className="text-gray-700">{formatPeso(preview.grossInterest)}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Commission ({form.commission_rate}%)</span>
+                  <span className="text-orange-600">− {formatPeso(preview.commissionAmt)}</span>
+                </div>
+                <div className="flex justify-between text-sm font-semibold">
+                  <span className="text-gray-700">Net Profit</span>
+                  <span className="text-green-700">{formatPeso(preview.netProfit)}</span>
                 </div>
               </>
             )}

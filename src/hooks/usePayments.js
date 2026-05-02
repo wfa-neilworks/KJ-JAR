@@ -154,6 +154,11 @@ export function useCollectLapseFee() {
   })
 }
 
+function applyCommission(amount, loan) {
+  if (!loan?.commission_rate) return amount
+  return amount * (1 - Number(loan.commission_rate) / 100)
+}
+
 function interestPortion(payment) {
   const { loan } = payment
   if (!loan) return 0
@@ -162,26 +167,26 @@ function interestPortion(payment) {
   if (payment.collection_type === 'lapsed') return 0
 
   // Lapse fee row — profit only when actually collected (paid_at set)
-  if (payment.is_lapse_fee) return Number(payment.amount_due)
+  if (payment.is_lapse_fee) return applyCommission(Number(payment.amount_due), loan)
 
   // Renewal marker — books the full interest of the old cycle as profit
-  if (payment.is_renewal_marker) return Number(payment.amount_due)
+  if (payment.is_renewal_marker) return applyCommission(Number(payment.amount_due), loan)
 
   const principal = Number(loan.principal)
   const rate = Number(loan.interest_rate)
   const interest = principal * (rate / 100)
 
-  if (loan.type === 'monthly') return interest
+  if (loan.type === 'monthly') return applyCommission(interest, loan)
 
-  // Weekly: profit is only counted on the LAST payment (week 6)
-  if (payment.is_last_payment) return interest
+  // Weekly: profit is only counted on the LAST payment
+  if (payment.is_last_payment) return applyCommission(interest, loan)
   return 0
 }
 
 async function fetchPaidWithLastFlag() {
   const { data, error } = await supabase
     .from('payments')
-    .select('loan_id, week_number, paid_at, amount_due, amount_paid, collection_type, is_lapse_fee, is_renewal_marker, loan:loans(type, principal, interest_rate)')
+    .select('loan_id, week_number, paid_at, amount_due, amount_paid, collection_type, is_lapse_fee, is_renewal_marker, loan:loans(type, principal, interest_rate, commission_rate)')
     .not('paid_at', 'is', null)
   if (error) throw error
 
