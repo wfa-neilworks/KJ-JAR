@@ -1113,15 +1113,15 @@ export default function BorrowerDetail() {
   const isLoading = loansLoading || settleLoading
   const hasAny = loans.length > 0 || settleLoans.length > 0
 
-  const showLoans = (filter === 'all' || filter === 'monthly' || filter === 'weekly'
+  const filteredLoans = (filter === 'all' || filter === 'monthly' || filter === 'weekly'
     ? loans.filter((l) => filter === 'all' || l.type === filter)
     : []
-  ).sort((a, b) => {
-    if (a.status === b.status) return 0
-    return a.status === 'active' ? -1 : 1
-  })
-  const showSettle = (filter === 'all' || filter === 'settle' ? settleLoans : []
-  ).sort((a, b) => {
+  ).map((l) => ({ ...l, _cardType: 'loan' }))
+
+  const filteredSettle = (filter === 'all' || filter === 'settle' ? settleLoans : []
+  ).map((l) => ({ ...l, _cardType: 'settle' }))
+
+  const allLoans = [...filteredLoans, ...filteredSettle].sort((a, b) => {
     if (a.status === b.status) return 0
     return a.status === 'active' ? -1 : 1
   })
@@ -1202,8 +1202,11 @@ export default function BorrowerDetail() {
         <p className="text-center text-gray-400 py-8">No loans on record.</p>
       ) : (
         <div className="flex flex-col gap-3">
-          {showLoans.map((loan) => <LoanCard key={loan.id} loan={loan} />)}
-          {showSettle.map((loan) => <SettleLoanCard key={loan.id} loan={loan} />)}
+          {allLoans.map((loan) =>
+            loan._cardType === 'settle'
+              ? <SettleLoanCard key={loan.id} loan={loan} />
+              : <LoanCard key={loan.id} loan={loan} />
+          )}
         </div>
       )}
 
