@@ -25,6 +25,7 @@ export default function NewLoan() {
     principal: '',
     type: '',
     interest_rate: '',
+    weeks: 6,
     loan_date: format(new Date(), 'yyyy-MM-dd'),
   })
   const [errors, setErrors] = useState({})
@@ -46,11 +47,11 @@ export default function NewLoan() {
     if (!rate) return null
     const total = calcTotalDue(p, rate)
     if (form.type === 'weekly') {
-      const weekly = calcWeeklyAmount(p)
-      return { total, weekly, weeks: 6 }
+      const weekly = calcWeeklyAmount(p, form.weeks)
+      return { total, weekly, weeks: form.weeks }
     }
     return { total }
-  }, [form.principal, form.type, form.interest_rate])
+  }, [form.principal, form.type, form.interest_rate, form.weeks])
 
   const validate = () => {
     const e = {}
@@ -86,6 +87,7 @@ export default function NewLoan() {
           interest_rate: rate,
           total_due,
           loan_date: form.loan_date,
+          weeks: form.type === 'weekly' ? form.weeks : undefined,
         })
         toast({ message: 'Loan created successfully!', type: 'success' })
         navigate('/')
@@ -197,6 +199,27 @@ export default function NewLoan() {
             </div>
           </div>
         )}
+        {form.type === 'weekly' && (
+          <div className="flex flex-col gap-1">
+            <label className="text-sm font-medium text-gray-700">Number of Weeks *</label>
+            <div className="flex gap-2">
+              {[6, 8, 12].map((w) => (
+                <button
+                  key={w}
+                  type="button"
+                  onClick={() => set('weeks')(w)}
+                  className={`flex-1 py-2.5 rounded-lg border text-sm font-medium transition-colors ${
+                    form.weeks === w
+                      ? 'bg-blue-600 text-white border-blue-600'
+                      : 'bg-white text-gray-600 border-gray-300 hover:border-blue-400'
+                  }`}
+                >
+                  {w} weeks
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
         {form.type === 'monthly' && (
           <div className="flex flex-col gap-1">
             <label className="text-sm font-medium text-gray-700">Interest Rate *</label>
@@ -245,7 +268,7 @@ export default function NewLoan() {
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">Duration</span>
-                  <span className="text-gray-700">6 weeks</span>
+                  <span className="text-gray-700">{preview.weeks} weeks</span>
                 </div>
               </>
             )}

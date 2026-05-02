@@ -42,7 +42,7 @@ function PaymentItem({ payment, onPay }) {
           <span className={cn('text-xs font-medium px-2 py-0.5 rounded-full', badge)}>{label}</span>
         </div>
         <p className="text-sm text-gray-500">
-          {payment.loan?.type === 'weekly' ? `Week ${payment.week_number} of 6` : 'Monthly payment'} &nbsp;·&nbsp; {format(new Date(payment.due_date), 'MMM d, yyyy')}
+          {payment.loan?.type === 'weekly' ? `Week ${payment.week_number}` : 'Monthly payment'} &nbsp;·&nbsp; {format(new Date(payment.due_date), 'MMM d, yyyy')}
         </p>
         <p className="text-sm text-gray-400">{payment.loan?.borrower?.mobile}</p>
       </div>

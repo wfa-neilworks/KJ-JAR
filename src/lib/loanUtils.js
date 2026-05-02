@@ -4,11 +4,11 @@ export function calcTotalDue(principal, interestRate) {
   return principal * (1 + interestRate / 100)
 }
 
-export function calcWeeklyAmount(principal) {
-  return calcTotalDue(principal, 20) / 6
+export function calcWeeklyAmount(principal, weeks = 6) {
+  return calcTotalDue(principal, 20) / weeks
 }
 
-export function generatePayments(loanId, type, principal, interestRate, loanDate) {
+export function generatePayments(loanId, type, principal, interestRate, loanDate, weeks = 6) {
   const date = new Date(loanDate)
   if (type === 'monthly') {
     const dueDate = addMonths(date, 1)
@@ -22,8 +22,8 @@ export function generatePayments(loanId, type, principal, interestRate, loanDate
     ]
   }
 
-  const weeklyAmount = calcWeeklyAmount(principal)
-  return Array.from({ length: 6 }, (_, i) => ({
+  const weeklyAmount = calcWeeklyAmount(principal, weeks)
+  return Array.from({ length: weeks }, (_, i) => ({
     loan_id: loanId,
     week_number: i + 1,
     amount_due: weeklyAmount,

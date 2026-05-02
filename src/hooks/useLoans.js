@@ -225,7 +225,8 @@ export function useCreateLoan() {
         loan.type,
         loan.principal,
         loan.interest_rate,
-        loan.loan_date
+        loan.loan_date,
+        loanData.weeks
       )
       const { error: payErr } = await supabase.from('payments').insert(payments)
       if (payErr) throw payErr
