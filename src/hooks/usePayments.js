@@ -26,8 +26,10 @@ export function useUpcomingPayments() {
 export function useMarkPaid() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async ({ paymentId, loanId, collectionType, amountPaid, rolloverAmount, interestRate, principal, note }) => {
+    mutationFn: async ({ paymentId, loanId, collectionType, amountPaid, rolloverAmount, interestRate, principal, note, dueDate }) => {
       const now = new Date().toISOString()
+      // Use the original due date as the base for next month, not today
+      const dueDateBase = dueDate ? new Date(dueDate) : new Date()
 
       if (collectionType === 'lapsed') {
         // Close the original payment row (paid_at = now, amount_paid = 0, type = lapsed)
@@ -48,7 +50,7 @@ export function useMarkPaid() {
         const maxWeek = existingPayments?.[0]?.week_number || 1
 
         const interest = principal * (interestRate / 100)
-        const newDueDate = format(addMonths(new Date(), 1), 'yyyy-MM-dd')
+        const newDueDate = format(addMonths(dueDateBase, 1), 'yyyy-MM-dd')
 
         // Insert lapse fee row — just the interest, unpaid, collectible anytime
         const { error: feeErr } = await supabase.from('payments').insert({
@@ -89,7 +91,7 @@ export function useMarkPaid() {
       if (collectionType === 'interest_only' || collectionType === 'partial') {
         const newCapital = rolloverAmount
         const newTotalDue = newCapital * (1 + interestRate / 100)
-        const newDueDate = format(addMonths(new Date(), 1), 'yyyy-MM-dd')
+        const newDueDate = format(addMonths(dueDateBase, 1), 'yyyy-MM-dd')
 
         const { data: existingPayments } = await supabase
           .from('payments')

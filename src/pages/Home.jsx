@@ -137,6 +137,7 @@ function CollectionModal({ selected, payments, onClose, markPaid }) {
         interestRate: rate,
         principal,
         note,
+        dueDate: selected.due_date,
       })
       toast({ message: 'Payment recorded!', type: 'success' })
       onClose()
