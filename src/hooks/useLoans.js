@@ -104,7 +104,7 @@ export function useEditPayment() {
           if (rollErr) throw rollErr
         }
       } else if (collection_type === 'complete') {
-        // If edited to complete, delete any unpaid rollover rows after this one
+        // Delete any unpaid rollover rows after this one
         const { data: futureRows } = await supabase
           .from('payments')
           .select('id')
@@ -116,6 +116,22 @@ export function useEditPayment() {
             .from('payments')
             .delete()
             .in('id', futureRows.map((r) => r.id))
+        }
+
+        // After clearing future rows, check if any unpaid rows still remain for this loan
+        const { data: stillUnpaid } = await supabase
+          .from('payments')
+          .select('id')
+          .eq('loan_id', loan.id)
+          .is('paid_at', null)
+          .limit(1)
+
+        if (!stillUnpaid || stillUnpaid.length === 0) {
+          const { error: loanErr } = await supabase
+            .from('loans')
+            .update({ status: 'completed' })
+            .eq('id', loan.id)
+          if (loanErr) throw loanErr
         }
       }
     },
