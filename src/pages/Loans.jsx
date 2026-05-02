@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { format } from 'date-fns'
+import { Search } from 'lucide-react'
 import PageWrapper from '@/components/layout/PageWrapper'
 import { useLoans } from '@/hooks/useLoans'
 import { useSettleLoans } from '@/hooks/useSettle'
@@ -53,6 +54,7 @@ export default function Loans() {
   const { state } = useLocation()
   const [typeTab, setTypeTab] = useState(state?.typeFilter || 'All')
   const [statusTab, setStatusTab] = useState(state?.statusFilter || 'All')
+  const [search, setSearch] = useState('')
 
   const { data: weeklyLoans = [], isLoading: wLoading } = useLoans('weekly')
   const { data: monthlyLoans = [], isLoading: mLoading } = useLoans('monthly')
@@ -84,14 +86,31 @@ export default function Loans() {
     return true
   })
 
+  const q = search.trim().toLowerCase()
+  const bySearch = q
+    ? byStatus.filter((l) => l.borrower?.name?.toLowerCase().includes(q))
+    : byStatus
+
   // Active first, then completed; within same status keep original order (created_at desc)
-  const sorted = [...byStatus].sort((a, b) => {
+  const sorted = [...bySearch].sort((a, b) => {
     if (a.status === b.status) return 0
     return a.status === 'active' ? -1 : 1
   })
 
   return (
     <PageWrapper title="Loans">
+      {/* Search bar */}
+      <div className="relative mb-3">
+        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+        <input
+          type="text"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search borrower name..."
+          className="w-full rounded-xl border border-gray-200 bg-white pl-9 pr-4 py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+      </div>
+
       {/* Filters row */}
       <div className="flex gap-3 mb-4">
         <select
