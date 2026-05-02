@@ -45,6 +45,24 @@ export function useEditLoan() {
         .update({ principal, interest_rate, loan_date, total_due })
         .eq('id', id)
       if (error) throw error
+
+      // For weekly loans, recalculate due dates for all unpaid rows based on new loan_date
+      if (type === 'weekly') {
+        const { data: unpaidRows } = await supabase
+          .from('payments')
+          .select('id, week_number')
+          .eq('loan_id', id)
+          .is('paid_at', null)
+          .order('week_number', { ascending: true })
+
+        if (unpaidRows && unpaidRows.length > 0) {
+          const base = new Date(loan_date)
+          for (const row of unpaidRows) {
+            const newDueDate = format(addDays(base, row.week_number * 7), 'yyyy-MM-dd')
+            await supabase.from('payments').update({ due_date: newDueDate }).eq('id', row.id)
+          }
+        }
+      }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['loans'] })
