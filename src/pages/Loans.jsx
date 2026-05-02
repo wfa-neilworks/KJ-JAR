@@ -1,11 +1,10 @@
 import { useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { format } from 'date-fns'
 import { Search } from 'lucide-react'
 import PageWrapper from '@/components/layout/PageWrapper'
 import { useLoans } from '@/hooks/useLoans'
 import { useSettleLoans } from '@/hooks/useSettle'
-import { formatPeso } from '@/lib/loanUtils'
+import { formatPeso, formatDate } from '@/lib/loanUtils'
 import { cn } from '@/lib/utils'
 
 function statusBadge(status) {
@@ -42,7 +41,7 @@ function LoanRow({ loan, loanType, onClick }) {
           {loanType !== 'settle' && (
             <> &nbsp;·&nbsp; {loan.interest_rate}% interest</>
           )}
-          &nbsp;·&nbsp; {format(new Date(loan.loan_date || loan.created_at), 'MMM d, yyyy')}
+          &nbsp;·&nbsp; {formatDate(loan.loan_date || loan.created_at)}
         </p>
       </div>
     </div>

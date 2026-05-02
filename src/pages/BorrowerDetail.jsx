@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { ArrowLeft, Phone, MapPin, Link, Shield, Pencil, ChevronDown, ChevronUp, Trash2, RefreshCw } from 'lucide-react'
-import { format } from 'date-fns'
+import { formatDate, formatDateTime } from '@/lib/loanUtils'
 import PageWrapper from '@/components/layout/PageWrapper'
 import Modal from '@/components/ui/Modal'
 import Button from '@/components/ui/Button'
@@ -402,7 +402,7 @@ function CollectModal({ payment, loan, markPaid, onClose }) {
         )}
         <div className="flex justify-between">
           <span className="text-gray-500">Due Date</span>
-          <span className="text-gray-700">{format(new Date(payment.due_date), 'MMM d, yyyy')}</span>
+          <span className="text-gray-700">{formatDate(payment.due_date)}</span>
         </div>
       </div>
 
@@ -586,7 +586,7 @@ function LoanCard({ loan }) {
           <div className="flex items-baseline gap-3 mt-0.5">
             <span className="font-semibold text-gray-900">{formatPeso(loan.principal)}</span>
             <span className="text-xs text-gray-400">{loan.interest_rate}% interest</span>
-            <span className="text-xs text-gray-400">{format(new Date(loan.loan_date), 'MMM d, yyyy')}</span>
+            <span className="text-xs text-gray-400">{formatDate(loan.loan_date)}</span>
           </div>
           {loan.type === 'weekly' && (
             <p className="text-xs text-gray-400">{paidCount} of {totalCount} payments collected</p>
@@ -642,7 +642,7 @@ function LoanCard({ loan }) {
                     <div key={p.id} className="flex items-center gap-2 py-2 px-3 rounded-lg bg-purple-50 border border-purple-200">
                       <RefreshCw size={13} className="text-purple-500 shrink-0" />
                       <span className="text-sm font-semibold text-purple-700">Loan Renewed</span>
-                      <span className="text-xs text-purple-500 ml-auto">{format(new Date(p.paid_at), 'MMM d, yyyy')}</span>
+                      <span className="text-xs text-purple-500 ml-auto">{formatDateTime(p.paid_at)}</span>
                     </div>
                   )
                 }
@@ -680,10 +680,10 @@ function LoanCard({ loan }) {
                         {label}
                         {' — '}
                         {isLapsed
-                          ? `Lapsed ${format(new Date(p.paid_at), 'MMM d, yyyy')}`
+                          ? `Lapsed ${formatDateTime(p.paid_at)}`
                           : p.paid_at
-                          ? format(new Date(p.paid_at), 'MMM d, yyyy h:mm a')
-                          : `Due ${format(new Date(p.due_date), 'MMM d, yyyy')}`}
+                          ? formatDateTime(p.paid_at)
+                          : `Due ${formatDate(p.due_date)}`}
                       </span>
                       <div className="flex items-center gap-2">
                         <span className={`font-semibold ${p.paid_at && !isLapsed ? 'text-green-600' : isLapsed ? 'text-red-500' : isUnpaidLapseFee ? 'text-yellow-700' : 'text-gray-800'}`}>
@@ -934,7 +934,7 @@ function SettleLoanCard({ loan }) {
           <div className="flex items-baseline gap-3 mt-0.5">
             <span className="font-semibold text-gray-900">{formatPeso(principal)}</span>
             <span className="text-xs text-gray-400">No interest</span>
-            <span className="text-xs text-gray-400">{format(new Date(loan.loan_date), 'MMM d, yyyy')}</span>
+            <span className="text-xs text-gray-400">{formatDate(loan.loan_date)}</span>
           </div>
           <div className="w-full bg-gray-200 rounded-full h-1.5 mt-0.5">
             <div className="bg-teal-500 h-1.5 rounded-full transition-all" style={{ width: `${pct}%` }} />
@@ -967,7 +967,7 @@ function SettleLoanCard({ loan }) {
               {[...payments].sort((a, b) => new Date(b.paid_at) - new Date(a.paid_at)).map((p) => (
                 <div key={p.id} className="bg-teal-50 rounded-lg px-3 py-2 flex items-center justify-between text-sm">
                   <div>
-                    <span className="text-gray-600">{format(new Date(p.paid_at), 'MMM d, yyyy h:mm a')}</span>
+                    <span className="text-gray-600">{formatDateTime(p.paid_at)}</span>
                     {p.note && <p className="text-xs text-gray-400 italic">"{p.note}"</p>}
                   </div>
                   <div className="flex items-center gap-2">

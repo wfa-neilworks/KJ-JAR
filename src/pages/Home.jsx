@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { differenceInCalendarDays, format } from 'date-fns'
+import { differenceInCalendarDays } from 'date-fns'
 import { CheckCircle } from 'lucide-react'
 import PageWrapper from '@/components/layout/PageWrapper'
 import Modal from '@/components/ui/Modal'
@@ -9,7 +9,7 @@ import FAB from '@/components/layout/FAB'
 import { useUpcomingPayments, useMarkPaid } from '@/hooks/usePayments'
 import { useRenewLoan } from '@/hooks/useLoans'
 import { useToast } from '@/components/ui/Toast'
-import { formatPeso } from '@/lib/loanUtils'
+import { formatPeso, formatDate, formatDateTime } from '@/lib/loanUtils'
 import { cn } from '@/lib/utils'
 
 function getDayDiff(dueDateStr) {
@@ -42,7 +42,7 @@ function PaymentItem({ payment, onPay }) {
           <span className={cn('text-xs font-medium px-2 py-0.5 rounded-full', badge)}>{label}</span>
         </div>
         <p className="text-sm text-gray-500">
-          {payment.loan?.type === 'weekly' ? `Week ${payment.week_number}` : 'Monthly payment'} &nbsp;·&nbsp; {format(new Date(payment.due_date), 'MMM d, yyyy')}
+          {payment.loan?.type === 'weekly' ? `Week ${payment.week_number}` : 'Monthly payment'} &nbsp;·&nbsp; {formatDate(payment.due_date)}
         </p>
         <p className="text-sm text-gray-400">{payment.loan?.borrower?.mobile}</p>
       </div>
@@ -160,7 +160,7 @@ function CollectionModal({ selected, payments, onClose, markPaid }) {
         </div>
         <div className="flex justify-between text-sm">
           <span className="text-gray-500">Due Date</span>
-          <span className="text-gray-700">{format(new Date(selected.due_date), 'MMM d, yyyy')}</span>
+          <span className="text-gray-700">{formatDate(selected.due_date)}</span>
         </div>
         {isMonthly && (
           <>
