@@ -47,6 +47,43 @@ export function useCreateSettleLoan() {
   })
 }
 
+export function useEditSettleLoan() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, principal, loan_date }) => {
+      const { error } = await supabase
+        .from('settle_loans')
+        .update({ principal, loan_date })
+        .eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['settle-loans'] }),
+  })
+}
+
+export function useEditSettlePayment() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, loanId, oldAmount, newAmount, newNote, principal, totalPaid }) => {
+      const { error } = await supabase
+        .from('settle_payments')
+        .update({ amount: newAmount, note: newNote || null })
+        .eq('id', id)
+      if (error) throw error
+
+      // Recompute whether loan should be active or completed after edit
+      const newTotal = totalPaid - oldAmount + newAmount
+      const newStatus = newTotal >= principal ? 'completed' : 'active'
+      const { error: loanErr } = await supabase
+        .from('settle_loans')
+        .update({ status: newStatus })
+        .eq('id', loanId)
+      if (loanErr) throw loanErr
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['settle-loans'] }),
+  })
+}
+
 export function useDeleteSettleLoan() {
   const qc = useQueryClient()
   return useMutation({

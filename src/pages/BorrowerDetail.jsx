@@ -8,7 +8,7 @@ import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import { useBorrowers, useEditBorrower } from '@/hooks/useBorrowers'
 import { useLoansByBorrower, useEditLoan, useEditPayment, useDeleteLoan, useRenewLoan } from '@/hooks/useLoans'
-import { useSettleLoansByBorrower, useDeleteSettleLoan, useDeleteSettlePayment } from '@/hooks/useSettle'
+import { useSettleLoansByBorrower, useDeleteSettleLoan, useDeleteSettlePayment, useEditSettleLoan, useEditSettlePayment } from '@/hooks/useSettle'
 import { useCollectLapseFee } from '@/hooks/usePayments'
 import { useToast } from '@/components/ui/Toast'
 import { formatPeso } from '@/lib/loanUtils'
@@ -588,15 +588,33 @@ function SettleLoanCard({ loan }) {
   const toast = useToast()
   const deleteLoan = useDeleteSettleLoan()
   const deletePayment = useDeleteSettlePayment()
+  const editLoanMut = useEditSettleLoan()
+  const editPaymentMut = useEditSettlePayment()
   const [expanded, setExpanded] = useState(false)
   const [confirmDeleteLoan, setConfirmDeleteLoan] = useState(false)
   const [confirmDeletePayment, setConfirmDeletePayment] = useState(null)
+  const [editingLoan, setEditingLoan] = useState(false)
+  const [editingPayment, setEditingPayment] = useState(null)
+
+  // Edit loan form state
+  const [loanPrincipal, setLoanPrincipal] = useState(String(loan.principal))
+  const [loanDate, setLoanDate] = useState(loan.loan_date)
+
+  // Edit payment form state
+  const [payAmount, setPayAmount] = useState('')
+  const [payNote, setPayNote] = useState('')
 
   const payments = loan.payments || []
   const totalPaid = payments.reduce((s, p) => s + Number(p.amount), 0)
   const principal = Number(loan.principal)
   const remaining = Math.max(0, principal - totalPaid)
   const pct = Math.min(100, (totalPaid / principal) * 100)
+
+  const openEditPayment = (p) => {
+    setPayAmount(String(p.amount))
+    setPayNote(p.note || '')
+    setEditingPayment(p)
+  }
 
   const handleDeleteLoan = async () => {
     try {
@@ -624,6 +642,38 @@ function SettleLoanCard({ loan }) {
     } catch {
       toast({ message: 'Failed to delete payment', type: 'error' })
       setConfirmDeletePayment(null)
+    }
+  }
+
+  const handleEditLoan = async (e) => {
+    e.preventDefault()
+    try {
+      await editLoanMut.mutateAsync({ id: loan.id, principal: parseFloat(loanPrincipal), loan_date: loanDate })
+      toast({ message: 'Loan updated', type: 'success' })
+      setEditingLoan(false)
+    } catch {
+      toast({ message: 'Failed to update loan', type: 'error' })
+    }
+  }
+
+  const handleEditPayment = async (e) => {
+    e.preventDefault()
+    const newAmt = parseFloat(payAmount)
+    if (!newAmt || newAmt <= 0) return
+    try {
+      await editPaymentMut.mutateAsync({
+        id: editingPayment.id,
+        loanId: loan.id,
+        oldAmount: Number(editingPayment.amount),
+        newAmount: newAmt,
+        newNote: payNote,
+        principal,
+        totalPaid,
+      })
+      toast({ message: 'Payment updated', type: 'success' })
+      setEditingPayment(null)
+    } catch {
+      toast({ message: 'Failed to update payment', type: 'error' })
     }
   }
 
@@ -657,7 +707,13 @@ function SettleLoanCard({ loan }) {
 
       {expanded && (
         <div className="px-4 pb-4 flex flex-col gap-3 border-t border-gray-100">
-          <div className="flex items-center justify-end pt-3">
+          <div className="flex items-center justify-end gap-1 pt-3">
+            <button
+              onClick={(e) => { e.stopPropagation(); setLoanPrincipal(String(loan.principal)); setLoanDate(loan.loan_date); setEditingLoan(true) }}
+              className="p-1.5 rounded-full hover:bg-gray-100 text-gray-400 hover:text-gray-700 flex items-center gap-1 text-xs"
+            >
+              <Pencil size={13} /> Edit loan
+            </button>
             <button
               onClick={(e) => { e.stopPropagation(); setConfirmDeleteLoan(true) }}
               className="p-1.5 rounded-full hover:bg-red-50 text-gray-400 hover:text-red-500 flex items-center gap-1 text-xs"
@@ -678,6 +734,12 @@ function SettleLoanCard({ loan }) {
                   <div className="flex items-center gap-2">
                     <span className="font-semibold text-teal-700">{formatPeso(p.amount)}</span>
                     <button
+                      onClick={() => openEditPayment(p)}
+                      className="text-gray-300 hover:text-gray-600 transition-colors p-1 rounded"
+                    >
+                      <Pencil size={13} />
+                    </button>
+                    <button
                       onClick={() => setConfirmDeletePayment(p)}
                       className="text-gray-300 hover:text-red-500 transition-colors p-1 rounded"
                     >
@@ -693,6 +755,58 @@ function SettleLoanCard({ loan }) {
         </div>
       )}
 
+      {/* Edit Loan Modal */}
+      <Modal open={editingLoan} onClose={() => setEditingLoan(false)} title="Edit Loan">
+        <form onSubmit={handleEditLoan} className="flex flex-col gap-4">
+          <Input
+            label="Loan Amount (PHP)"
+            type="number"
+            min="1"
+            step="0.01"
+            value={loanPrincipal}
+            onChange={(e) => setLoanPrincipal(e.target.value)}
+          />
+          <Input
+            label="Loan Date"
+            type="date"
+            value={loanDate}
+            onChange={(e) => setLoanDate(e.target.value)}
+          />
+          <Button type="submit" size="full" disabled={editLoanMut.isPending}>
+            {editLoanMut.isPending ? 'Saving...' : 'Save Changes'}
+          </Button>
+        </form>
+      </Modal>
+
+      {/* Edit Payment Modal */}
+      <Modal open={!!editingPayment} onClose={() => setEditingPayment(null)} title="Edit Payment">
+        {editingPayment && (
+          <form onSubmit={handleEditPayment} className="flex flex-col gap-4">
+            <Input
+              label="Amount (PHP)"
+              type="number"
+              min="0.01"
+              step="0.01"
+              value={payAmount}
+              onChange={(e) => setPayAmount(e.target.value)}
+            />
+            <div className="flex flex-col gap-1">
+              <label className="text-sm font-medium text-gray-700">Note <span className="text-gray-400 font-normal">(optional)</span></label>
+              <textarea
+                value={payNote}
+                onChange={(e) => setPayNote(e.target.value)}
+                rows={2}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-500 resize-none"
+              />
+            </div>
+            <Button type="submit" size="full" disabled={editPaymentMut.isPending}>
+              {editPaymentMut.isPending ? 'Saving...' : 'Save Changes'}
+            </Button>
+          </form>
+        )}
+      </Modal>
+
+      {/* Delete Loan Confirm */}
       <Modal open={confirmDeleteLoan} onClose={() => setConfirmDeleteLoan(false)} title="Delete Loan">
         <div className="flex flex-col gap-4">
           <p className="text-sm text-gray-600 text-center">
@@ -708,6 +822,7 @@ function SettleLoanCard({ loan }) {
         </div>
       </Modal>
 
+      {/* Delete Payment Confirm */}
       <Modal open={!!confirmDeletePayment} onClose={() => setConfirmDeletePayment(null)} title="Delete Payment">
         {confirmDeletePayment && (
           <div className="flex flex-col gap-4">
