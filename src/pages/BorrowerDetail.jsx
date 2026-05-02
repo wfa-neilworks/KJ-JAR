@@ -313,20 +313,53 @@ function RenewLoanModal({ loan, onClose }) {
   )
 }
 
-function CollectWeekModal({ payment, loan, markPaid, onClose }) {
+function CollectModal({ payment, loan, markPaid, onClose }) {
   const toast = useToast()
+  const [step, setStep] = useState('choose') // 'choose' | 'partial' | 'confirm'
+  const [pendingType, setPendingType] = useState(null)
+  const [partialAmount, setPartialAmount] = useState('')
   const [note, setNote] = useState('')
 
+  const isMonthly = loan.type === 'monthly'
+  const principal = Number(loan.principal)
+  const rate = Number(loan.interest_rate)
+  const interest = principal * (rate / 100)
+  const amountDue = Number(payment.amount_due)
+
+  const requestConfirm = (type) => {
+    if (type === 'partial') {
+      const amt = parseFloat(partialAmount)
+      if (!amt || amt <= 0 || amt >= amountDue) {
+        toast({ message: `Enter an amount between ₱1 and ${formatPeso(amountDue - 1)}`, type: 'error' })
+        return
+      }
+    }
+    setPendingType(type)
+    setStep('confirm')
+  }
+
   const handleCollect = async () => {
+    let amountPaid, rolloverAmount
+    if (pendingType === 'complete') {
+      amountPaid = amountDue
+      rolloverAmount = null
+    } else if (pendingType === 'interest_only') {
+      amountPaid = interest
+      rolloverAmount = principal
+    } else if (pendingType === 'partial') {
+      amountPaid = parseFloat(partialAmount)
+      rolloverAmount = amountDue - amountPaid
+    }
+
     try {
       await markPaid.mutateAsync({
         paymentId: payment.id,
         loanId: loan.id,
-        collectionType: 'complete',
-        amountPaid: Number(payment.amount_due),
-        rolloverAmount: null,
-        interestRate: Number(loan.interest_rate),
-        principal: Number(loan.principal),
+        collectionType: pendingType,
+        amountPaid,
+        rolloverAmount,
+        interestRate: rate,
+        principal,
         note,
         dueDate: payment.due_date,
       })
@@ -340,35 +373,141 @@ function CollectWeekModal({ payment, loan, markPaid, onClose }) {
   return (
     <div className="flex flex-col gap-4">
       <div className="bg-gray-50 rounded-xl p-4 flex flex-col gap-2 text-sm">
-        <div className="flex justify-between">
-          <span className="text-gray-500">Week</span>
-          <span className="font-medium text-gray-900">Week {payment.week_number}</span>
-        </div>
-        <div className="flex justify-between">
-          <span className="text-gray-500">Amount</span>
-          <span className="font-semibold text-gray-900">{formatPeso(payment.amount_due)}</span>
-        </div>
+        {isMonthly ? (
+          <>
+            <div className="flex justify-between">
+              <span className="text-gray-500">Capital</span>
+              <span className="text-gray-700">{formatPeso(principal)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-500">Interest ({rate}%)</span>
+              <span className="text-gray-700">{formatPeso(interest)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-500">Total Due</span>
+              <span className="font-semibold text-gray-900">{formatPeso(amountDue)}</span>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="flex justify-between">
+              <span className="text-gray-500">Week</span>
+              <span className="font-medium text-gray-900">Week {payment.week_number}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-500">Amount Due</span>
+              <span className="font-semibold text-gray-900">{formatPeso(amountDue)}</span>
+            </div>
+          </>
+        )}
         <div className="flex justify-between">
           <span className="text-gray-500">Due Date</span>
           <span className="text-gray-700">{format(new Date(payment.due_date), 'MMM d, yyyy')}</span>
         </div>
       </div>
-      <div className="flex flex-col gap-1">
-        <label className="text-sm font-medium text-gray-700">Note <span className="text-gray-400 font-normal">(optional)</span></label>
-        <textarea
-          value={note}
-          onChange={(e) => setNote(e.target.value)}
-          placeholder="e.g. Early payment..."
-          rows={2}
-          className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-        />
-      </div>
-      <div className="flex gap-3">
-        <Button variant="outline" size="full" onClick={onClose}>Cancel</Button>
-        <Button size="full" onClick={handleCollect} disabled={markPaid.isPending}>
-          {markPaid.isPending ? 'Collecting...' : 'Confirm Collect'}
-        </Button>
-      </div>
+
+      {step === 'choose' && (
+        <div className="flex flex-col gap-3">
+          <button
+            onClick={() => requestConfirm('complete')}
+            className="w-full text-left rounded-xl border-2 border-green-200 bg-green-50 px-4 py-3 hover:border-green-400 transition-colors"
+          >
+            <p className="font-semibold text-green-700">{isMonthly ? 'Complete Collection' : `Collect Week ${payment.week_number}`}</p>
+            <p className="text-sm text-green-600 mt-0.5">Collect full {formatPeso(amountDue)}{isMonthly ? ' — loan cleared' : ''}</p>
+          </button>
+
+          {isMonthly && (
+            <button
+              onClick={() => requestConfirm('interest_only')}
+              className="w-full text-left rounded-xl border-2 border-blue-200 bg-blue-50 px-4 py-3 hover:border-blue-400 transition-colors"
+            >
+              <p className="font-semibold text-blue-700">Interest Only</p>
+              <p className="text-sm text-blue-600 mt-0.5">Collect {formatPeso(interest)} now — capital {formatPeso(principal)} rolls over next month</p>
+            </button>
+          )}
+
+          {isMonthly && (
+            <button
+              onClick={() => setStep('partial')}
+              className="w-full text-left rounded-xl border-2 border-orange-200 bg-orange-50 px-4 py-3 hover:border-orange-400 transition-colors"
+            >
+              <p className="font-semibold text-orange-700">Partial Collection</p>
+              <p className="text-sm text-orange-600 mt-0.5">Collect a partial amount — balance + interest rolls over next month</p>
+            </button>
+          )}
+
+          {isMonthly && (
+            <button
+              onClick={() => requestConfirm('lapsed')}
+              className="w-full text-left rounded-xl border-2 border-red-200 bg-red-50 px-4 py-3 hover:border-red-400 transition-colors"
+            >
+              <p className="font-semibold text-red-700">Lapse</p>
+              <p className="text-sm text-red-600 mt-0.5">Borrower failed to pay — interest {formatPeso(interest)} logged as debt, capital rolls over</p>
+            </button>
+          )}
+
+          <div className="flex flex-col gap-1">
+            <label className="text-sm font-medium text-gray-700">Note <span className="text-gray-400 font-normal">(optional)</span></label>
+            <textarea
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              placeholder="e.g. Early payment..."
+              rows={2}
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+            />
+          </div>
+          <Button variant="ghost" size="full" onClick={onClose}>Cancel</Button>
+        </div>
+      )}
+
+      {step === 'partial' && (
+        <div className="flex flex-col gap-3">
+          <Input
+            label="Partial Amount (PHP)"
+            type="number"
+            value={partialAmount}
+            onChange={(e) => setPartialAmount(e.target.value)}
+            placeholder={`Max ${formatPeso(amountDue - 1)}`}
+          />
+          <div className="flex gap-3">
+            <Button variant="outline" size="full" onClick={() => setStep('choose')}>Back</Button>
+            <Button size="full" onClick={() => requestConfirm('partial')}>Continue</Button>
+          </div>
+        </div>
+      )}
+
+      {step === 'confirm' && (
+        <div className="flex flex-col gap-4">
+          <div className={`rounded-xl border px-4 py-3 text-sm flex flex-col gap-1 ${
+            pendingType === 'complete' ? 'bg-green-50 border-green-200' :
+            pendingType === 'interest_only' ? 'bg-blue-50 border-blue-200' :
+            pendingType === 'partial' ? 'bg-orange-50 border-orange-200' :
+            'bg-red-50 border-red-200'
+          }`}>
+            <div className="flex justify-between">
+              <span className="text-gray-500">Type</span>
+              <span className="font-semibold">
+                {pendingType === 'complete' ? 'Complete' : pendingType === 'interest_only' ? 'Interest Only' : pendingType === 'partial' ? 'Partial' : 'Lapse'}
+              </span>
+            </div>
+            {pendingType !== 'lapsed' && (
+              <div className="flex justify-between">
+                <span className="text-gray-500">Amount Collected</span>
+                <span className="font-semibold">
+                  {pendingType === 'complete' ? formatPeso(amountDue) : pendingType === 'interest_only' ? formatPeso(interest) : formatPeso(parseFloat(partialAmount))}
+                </span>
+              </div>
+            )}
+          </div>
+          <p className="text-sm text-center text-gray-500">Confirm this collection?</p>
+          <div className="flex gap-3">
+            <Button variant="outline" size="full" onClick={() => setStep('choose')}>Back</Button>
+            <Button size="full" onClick={handleCollect} disabled={markPaid.isPending}>
+              {markPaid.isPending ? 'Recording...' : 'Confirm'}
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -389,8 +528,8 @@ function LoanCard({ loan }) {
   const paidPayments = loan.payments?.filter((p) => p.paid_at && !p.is_renewal_marker) || []
   const canRenew = loan.type === 'weekly' && loan.status === 'active' && paidPayments.length >= 1
 
-  // The one unpaid non-lapse row with the lowest week_number — the next collectible week
-  const nextCollectible = loan.type === 'weekly' && loan.status === 'active'
+  // For weekly: only the next unpaid row. For monthly: the single unpaid row (if active).
+  const nextCollectible = loan.status === 'active'
     ? (loan.payments || [])
         .filter((p) => !p.paid_at && !p.is_lapse_fee)
         .sort((a, b) => a.week_number - b.week_number)[0] ?? null
@@ -658,10 +797,18 @@ function LoanCard({ loan }) {
         )}
       </Modal>
 
-      {/* Collect Week Modal */}
-      <Modal open={!!collectingWeek} onClose={() => setCollectingWeek(null)} title={collectingWeek ? `Collect Week ${collectingWeek.week_number}` : ''}>
+      {/* Collect Modal (weekly early collect + monthly advance collect) */}
+      <Modal
+        open={!!collectingWeek}
+        onClose={() => setCollectingWeek(null)}
+        title={collectingWeek
+          ? loan.type === 'weekly'
+            ? `Collect Week ${collectingWeek.week_number}`
+            : 'Collect Payment'
+          : ''}
+      >
         {collectingWeek && (
-          <CollectWeekModal
+          <CollectModal
             payment={collectingWeek}
             loan={loan}
             markPaid={markPaid}
