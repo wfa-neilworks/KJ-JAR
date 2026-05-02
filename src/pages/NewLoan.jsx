@@ -38,7 +38,7 @@ export default function NewLoan() {
 
   const selectedBorrower = activeBorrowers.find((b) => b.id === form.borrower_id)
 
-  const set = (k) => (v) => setForm((f) => ({ ...f, [k]: typeof v === 'string' ? v : v.target.value }))
+  const set = (k) => (v) => setForm((f) => ({ ...f, [k]: (typeof v === 'string' || typeof v === 'number') ? v : v.target.value }))
 
   const preview = useMemo(() => {
     const p = parseFloat(form.principal)
