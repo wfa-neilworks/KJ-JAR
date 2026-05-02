@@ -7,9 +7,6 @@ import { useSettleLoans } from '@/hooks/useSettle'
 import { formatPeso } from '@/lib/loanUtils'
 import { cn } from '@/lib/utils'
 
-const TYPE_TABS = ['All', 'Weekly', 'Monthly', 'To Settle']
-const STATUS_TABS = ['All', 'Active', 'Completed']
-
 function statusBadge(status) {
   return status === 'active'
     ? 'bg-green-100 text-green-700'
@@ -92,47 +89,30 @@ export default function Loans() {
     return a.status === 'active' ? -1 : 1
   })
 
-  const showStatusFilter = typeTab !== 'All'
-
   return (
     <PageWrapper title="Loans">
-      {/* Type tabs */}
-      <div className="flex gap-2 overflow-x-auto pb-1 mb-1 no-scrollbar">
-        {TYPE_TABS.map((tab) => (
-          <button
-            key={tab}
-            onClick={() => { setTypeTab(tab); setStatusTab('All') }}
-            className={cn(
-              'shrink-0 px-4 py-1.5 rounded-full text-sm font-medium transition-colors border',
-              typeTab === tab
-                ? 'bg-blue-600 text-white border-blue-600'
-                : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400'
-            )}
-          >
-            {tab}
-          </button>
-        ))}
+      {/* Filters row */}
+      <div className="flex gap-3 mb-4">
+        <select
+          value={typeTab}
+          onChange={(e) => { setTypeTab(e.target.value); setStatusTab('All') }}
+          className="flex-1 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        >
+          <option value="All">All Types</option>
+          <option value="Weekly">Weekly</option>
+          <option value="Monthly">Monthly</option>
+          <option value="To Settle">To Settle</option>
+        </select>
+        <select
+          value={statusTab}
+          onChange={(e) => setStatusTab(e.target.value)}
+          className="flex-1 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        >
+          <option value="All">All Status</option>
+          <option value="Active">Active</option>
+          <option value="Completed">Completed</option>
+        </select>
       </div>
-
-      {/* Status sub-filter — only when a specific type is selected */}
-      {showStatusFilter && (
-        <div className="flex gap-2 mb-3">
-          {STATUS_TABS.map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setStatusTab(tab)}
-              className={cn(
-                'px-3 py-1 rounded-full text-xs font-medium transition-colors border',
-                statusTab === tab
-                  ? 'bg-gray-800 text-white border-gray-800'
-                  : 'bg-white text-gray-500 border-gray-200 hover:border-gray-400'
-              )}
-            >
-              {tab}
-            </button>
-          ))}
-        </div>
-      )}
 
       {isLoading ? (
         <p className="text-center text-gray-400 py-8">Loading...</p>
