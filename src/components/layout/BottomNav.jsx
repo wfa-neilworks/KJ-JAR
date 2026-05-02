@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom'
-import { Bell, CalendarDays, BarChart2, Users, Handshake } from 'lucide-react'
+import { Bell, CalendarDays, BarChart2, Users, Handshake, List } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const navItems = [
@@ -7,6 +7,7 @@ const navItems = [
   { to: '/weekly', icon: CalendarDays, label: 'Weekly' },
   { to: '/monthly', icon: BarChart2, label: 'Monthly' },
   { to: '/settle', icon: Handshake, label: 'Settle' },
+  { to: '/loans', icon: List, label: 'Loans' },
   { to: '/borrowers', icon: Users, label: 'Borrowers' },
 ]
 
@@ -20,7 +21,7 @@ export default function BottomNav() {
           end={to === '/'}
           className={({ isActive }) =>
             cn(
-              'flex flex-col items-center gap-0.5 px-4 py-1 rounded-lg transition-colors text-xs font-medium',
+              'flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg transition-colors text-xs font-medium',
               isActive ? 'text-blue-600' : 'text-gray-400 hover:text-gray-700'
             )
           }

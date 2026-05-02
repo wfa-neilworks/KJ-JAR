@@ -8,6 +8,7 @@ import Dashboard from '@/pages/Dashboard'
 import DashboardSettle from '@/pages/DashboardSettle'
 import Borrowers from '@/pages/Borrowers'
 import BorrowerDetail from '@/pages/BorrowerDetail'
+import Loans from '@/pages/Loans'
 import NewLoan from '@/pages/NewLoan'
 import Login from '@/pages/Login'
 
@@ -43,6 +44,7 @@ function AppRoutes() {
         <Route path="/weekly" element={<Dashboard type="weekly" />} />
         <Route path="/monthly" element={<Dashboard type="monthly" />} />
         <Route path="/settle" element={<DashboardSettle />} />
+        <Route path="/loans" element={<Loans />} />
         <Route path="/borrowers" element={<Borrowers />} />
         <Route path="/borrowers/:id" element={<BorrowerDetail />} />
         <Route path="/new-loan" element={<NewLoan />} />
