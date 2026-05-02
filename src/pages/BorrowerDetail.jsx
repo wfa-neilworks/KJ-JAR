@@ -1113,10 +1113,18 @@ export default function BorrowerDetail() {
   const isLoading = loansLoading || settleLoading
   const hasAny = loans.length > 0 || settleLoans.length > 0
 
-  const showLoans = filter === 'all' || filter === 'monthly' || filter === 'weekly'
+  const showLoans = (filter === 'all' || filter === 'monthly' || filter === 'weekly'
     ? loans.filter((l) => filter === 'all' || l.type === filter)
     : []
-  const showSettle = filter === 'all' || filter === 'settle' ? settleLoans : []
+  ).sort((a, b) => {
+    if (a.status === b.status) return 0
+    return a.status === 'active' ? -1 : 1
+  })
+  const showSettle = (filter === 'all' || filter === 'settle' ? settleLoans : []
+  ).sort((a, b) => {
+    if (a.status === b.status) return 0
+    return a.status === 'active' ? -1 : 1
+  })
 
   if (!borrower) return (
     <PageWrapper title="Borrower">
