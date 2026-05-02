@@ -1,13 +1,12 @@
 import { useState } from 'react'
 import { format } from 'date-fns'
-import { Banknote, ClipboardList, ChevronDown, ChevronUp, Trash2 } from 'lucide-react'
+import { Banknote, ClipboardList, ChevronDown, ChevronUp, Trash2, Pencil } from 'lucide-react'
 import PageWrapper from '@/components/layout/PageWrapper'
 import Modal from '@/components/ui/Modal'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import FAB from '@/components/layout/FAB'
-import { useSettleLoans, useCollectSettlePayment, useDeleteSettleLoan, useDeleteSettlePayment } from '@/hooks/useSettle'
-import { useBorrowers } from '@/hooks/useBorrowers'
+import { useSettleLoans, useCollectSettlePayment, useDeleteSettleLoan, useDeleteSettlePayment, useEditSettleLoan, useEditSettlePayment } from '@/hooks/useSettle'
 import { useToast } from '@/components/ui/Toast'
 import { formatPeso } from '@/lib/loanUtils'
 
@@ -103,7 +102,12 @@ function CollectModal({ loan, onClose }) {
 function PaymentRow({ payment, loan, totalPaid }) {
   const toast = useToast()
   const deletePayment = useDeleteSettlePayment()
-  const [confirm, setConfirm] = useState(false)
+  const editPayment = useEditSettlePayment()
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [editing, setEditing] = useState(false)
+  const [editAmount, setEditAmount] = useState(String(payment.amount))
+  const [editNote, setEditNote] = useState(payment.note || '')
+  const [editDate, setEditDate] = useState(payment.paid_at ? payment.paid_at.slice(0, 10) : '')
 
   const handleDelete = async () => {
     try {
@@ -115,10 +119,32 @@ function PaymentRow({ payment, loan, totalPaid }) {
         principal: Number(loan.principal),
       })
       toast({ message: 'Payment deleted', type: 'success' })
-      setConfirm(false)
+      setConfirmDelete(false)
     } catch {
       toast({ message: 'Failed to delete payment', type: 'error' })
-      setConfirm(false)
+      setConfirmDelete(false)
+    }
+  }
+
+  const handleEdit = async (e) => {
+    e.preventDefault()
+    const newAmt = parseFloat(editAmount)
+    if (!newAmt || newAmt <= 0) return
+    try {
+      await editPayment.mutateAsync({
+        id: payment.id,
+        loanId: loan.id,
+        oldAmount: Number(payment.amount),
+        newAmount: newAmt,
+        newNote: editNote,
+        newDate: editDate || null,
+        principal: Number(loan.principal),
+        totalPaid,
+      })
+      toast({ message: 'Payment updated', type: 'success' })
+      setEditing(false)
+    } catch {
+      toast({ message: 'Failed to update payment', type: 'error' })
     }
   }
 
@@ -130,11 +156,15 @@ function PaymentRow({ payment, loan, totalPaid }) {
           {payment.note && <p className="text-xs text-gray-400 italic">"{payment.note}"</p>}
         </div>
         <div className="flex items-center gap-2">
-          <div className="text-right">
-            <span className="font-semibold text-teal-700">{formatPeso(payment.amount)}</span>
-          </div>
+          <span className="font-semibold text-teal-700">{formatPeso(payment.amount)}</span>
           <button
-            onClick={() => setConfirm(true)}
+            onClick={() => { setEditAmount(String(payment.amount)); setEditNote(payment.note || ''); setEditDate(payment.paid_at ? payment.paid_at.slice(0, 10) : ''); setEditing(true) }}
+            className="text-gray-300 hover:text-gray-600 transition-colors p-1 rounded"
+          >
+            <Pencil size={13} />
+          </button>
+          <button
+            onClick={() => setConfirmDelete(true)}
             className="text-gray-300 hover:text-red-500 transition-colors p-1 rounded"
           >
             <Trash2 size={13} />
@@ -142,13 +172,44 @@ function PaymentRow({ payment, loan, totalPaid }) {
         </div>
       </div>
 
-      <Modal open={confirm} onClose={() => setConfirm(false)} title="Delete Payment">
+      <Modal open={editing} onClose={() => setEditing(false)} title="Edit Payment">
+        <form onSubmit={handleEdit} className="flex flex-col gap-4">
+          <Input
+            label="Amount (PHP)"
+            type="number"
+            min="0.01"
+            step="0.01"
+            value={editAmount}
+            onChange={(e) => setEditAmount(e.target.value)}
+          />
+          <Input
+            label="Date"
+            type="date"
+            value={editDate}
+            onChange={(e) => setEditDate(e.target.value)}
+          />
+          <div className="flex flex-col gap-1">
+            <label className="text-sm font-medium text-gray-700">Note <span className="text-gray-400 font-normal">(optional)</span></label>
+            <textarea
+              value={editNote}
+              onChange={(e) => setEditNote(e.target.value)}
+              rows={2}
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-500 resize-none"
+            />
+          </div>
+          <Button type="submit" size="full" disabled={editPayment.isPending}>
+            {editPayment.isPending ? 'Saving...' : 'Save Changes'}
+          </Button>
+        </form>
+      </Modal>
+
+      <Modal open={confirmDelete} onClose={() => setConfirmDelete(false)} title="Delete Payment">
         <div className="flex flex-col gap-4">
           <p className="text-sm text-gray-600 text-center">
             Delete this payment of <span className="font-semibold">{formatPeso(payment.amount)}</span>? The progress bar and dashboard will update.
           </p>
           <div className="flex gap-3">
-            <Button variant="outline" size="full" onClick={() => setConfirm(false)}>Cancel</Button>
+            <Button variant="outline" size="full" onClick={() => setConfirmDelete(false)}>Cancel</Button>
             <Button
               size="full"
               onClick={handleDelete}
@@ -167,9 +228,13 @@ function PaymentRow({ payment, loan, totalPaid }) {
 function LoanItem({ loan }) {
   const toast = useToast()
   const deleteLoan = useDeleteSettleLoan()
+  const editLoan = useEditSettleLoan()
   const [expanded, setExpanded] = useState(false)
   const [collecting, setCollecting] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [editingLoan, setEditingLoan] = useState(false)
+  const [loanPrincipal, setLoanPrincipal] = useState(String(loan.principal))
+  const [loanDate, setLoanDate] = useState(loan.loan_date)
 
   const handleDelete = async () => {
     try {
@@ -183,6 +248,17 @@ function LoanItem({ loan }) {
         toast({ message: 'Failed to delete loan', type: 'error' })
       }
       setConfirmDelete(false)
+    }
+  }
+
+  const handleEditLoan = async (e) => {
+    e.preventDefault()
+    try {
+      await editLoan.mutateAsync({ id: loan.id, principal: parseFloat(loanPrincipal), loan_date: loanDate })
+      toast({ message: 'Loan updated', type: 'success' })
+      setEditingLoan(false)
+    } catch {
+      toast({ message: 'Failed to update loan', type: 'error' })
     }
   }
 
@@ -224,6 +300,12 @@ function LoanItem({ loan }) {
               </button>
             )}
             <button
+              onClick={(e) => { e.stopPropagation(); setLoanPrincipal(String(loan.principal)); setLoanDate(loan.loan_date); setEditingLoan(true) }}
+              className="text-xs font-medium px-2 py-1 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors flex items-center gap-1"
+            >
+              <Pencil size={12} /> Edit
+            </button>
+            <button
               onClick={(e) => { e.stopPropagation(); setConfirmDelete(true) }}
               className="text-xs font-medium px-2 py-1 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors flex items-center gap-1"
             >
@@ -255,6 +337,28 @@ function LoanItem({ loan }) {
 
       <Modal open={collecting} onClose={() => setCollecting(false)} title="Record Payment">
         <CollectModal loan={loan} onClose={() => setCollecting(false)} />
+      </Modal>
+
+      <Modal open={editingLoan} onClose={() => setEditingLoan(false)} title="Edit Loan">
+        <form onSubmit={handleEditLoan} className="flex flex-col gap-4">
+          <Input
+            label="Loan Amount (PHP)"
+            type="number"
+            min="1"
+            step="0.01"
+            value={loanPrincipal}
+            onChange={(e) => setLoanPrincipal(e.target.value)}
+          />
+          <Input
+            label="Loan Date"
+            type="date"
+            value={loanDate}
+            onChange={(e) => setLoanDate(e.target.value)}
+          />
+          <Button type="submit" size="full" disabled={editLoan.isPending}>
+            {editLoan.isPending ? 'Saving...' : 'Save Changes'}
+          </Button>
+        </form>
       </Modal>
 
       <Modal open={confirmDelete} onClose={() => setConfirmDelete(false)} title="Delete Loan">

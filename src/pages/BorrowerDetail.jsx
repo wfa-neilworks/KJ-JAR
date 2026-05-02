@@ -603,6 +603,7 @@ function SettleLoanCard({ loan }) {
   // Edit payment form state
   const [payAmount, setPayAmount] = useState('')
   const [payNote, setPayNote] = useState('')
+  const [payDate, setPayDate] = useState('')
 
   const payments = loan.payments || []
   const totalPaid = payments.reduce((s, p) => s + Number(p.amount), 0)
@@ -613,6 +614,7 @@ function SettleLoanCard({ loan }) {
   const openEditPayment = (p) => {
     setPayAmount(String(p.amount))
     setPayNote(p.note || '')
+    setPayDate(p.paid_at ? p.paid_at.slice(0, 10) : '')
     setEditingPayment(p)
   }
 
@@ -667,6 +669,7 @@ function SettleLoanCard({ loan }) {
         oldAmount: Number(editingPayment.amount),
         newAmount: newAmt,
         newNote: payNote,
+        newDate: payDate || null,
         principal,
         totalPaid,
       })
@@ -789,6 +792,12 @@ function SettleLoanCard({ loan }) {
               step="0.01"
               value={payAmount}
               onChange={(e) => setPayAmount(e.target.value)}
+            />
+            <Input
+              label="Date"
+              type="date"
+              value={payDate}
+              onChange={(e) => setPayDate(e.target.value)}
             />
             <div className="flex flex-col gap-1">
               <label className="text-sm font-medium text-gray-700">Note <span className="text-gray-400 font-normal">(optional)</span></label>

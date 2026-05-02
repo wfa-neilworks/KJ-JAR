@@ -64,10 +64,10 @@ export function useEditSettleLoan() {
 export function useEditSettlePayment() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async ({ id, loanId, oldAmount, newAmount, newNote, principal, totalPaid }) => {
+    mutationFn: async ({ id, loanId, oldAmount, newAmount, newNote, newDate, principal, totalPaid }) => {
       const { error } = await supabase
         .from('settle_payments')
-        .update({ amount: newAmount, note: newNote || null })
+        .update({ amount: newAmount, note: newNote || null, paid_at: newDate || undefined })
         .eq('id', id)
       if (error) throw error
 
