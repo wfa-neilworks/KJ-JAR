@@ -402,7 +402,7 @@ function LoanCard({ loan }) {
               >
                 <Trash2 size={13} /> Delete
               </button>
-              {(loan.type !== 'weekly' || paidCount === 0) && (
+              {paidCount === 0 && (
                 <button
                   onClick={(e) => { e.stopPropagation(); setEditLoan(true) }}
                   className="p-1.5 rounded-full hover:bg-gray-100 text-gray-400 hover:text-gray-700 flex items-center gap-1 text-xs"
@@ -479,7 +479,7 @@ function LoanCard({ loan }) {
                       </span>
                       <div className="flex items-center gap-2">
                         <span className={`font-semibold ${p.paid_at && !isLapsed ? 'text-green-600' : isLapsed ? 'text-red-500' : isUnpaidLapseFee ? 'text-yellow-700' : 'text-gray-800'}`}>
-                          {formatPeso(p.amount_due)}
+                          {p.paid_at && p.amount_paid != null ? formatPeso(p.amount_paid) : formatPeso(p.amount_due)}
                         </span>
                         {p.paid_at && !isUnpaidLapseFee && (
                           <button
