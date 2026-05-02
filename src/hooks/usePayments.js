@@ -154,9 +154,9 @@ export function useCollectLapseFee() {
   })
 }
 
-function applyCommission(amount, loan) {
-  if (!loan?.commission_rate) return amount
-  return amount * (1 - Number(loan.commission_rate) / 100)
+function commissionAmount(loan) {
+  if (!loan?.commission_rate) return 0
+  return Number(loan.principal) * (Number(loan.commission_rate) / 100)
 }
 
 function interestPortion(payment) {
@@ -166,20 +166,22 @@ function interestPortion(payment) {
   // Lapsed original row (amount_paid=0) — no profit, borrower didn't pay anything
   if (payment.collection_type === 'lapsed') return 0
 
-  // Lapse fee row — profit only when actually collected (paid_at set)
-  if (payment.is_lapse_fee) return applyCommission(Number(payment.amount_due), loan)
-
-  // Renewal marker — books the full interest of the old cycle as profit
-  if (payment.is_renewal_marker) return applyCommission(Number(payment.amount_due), loan)
-
   const principal = Number(loan.principal)
   const rate = Number(loan.interest_rate)
   const interest = principal * (rate / 100)
+  const commission = commissionAmount(loan)
 
-  if (loan.type === 'monthly') return applyCommission(interest, loan)
+  // Lapse fee row — profit only when actually collected (paid_at set)
+  // Lapse fee is just the interest amount, commission still applies
+  if (payment.is_lapse_fee) return Math.max(0, Number(payment.amount_due) - commission)
+
+  // Renewal marker — books the full interest of the old cycle as profit
+  if (payment.is_renewal_marker) return Math.max(0, interest - commission)
+
+  if (loan.type === 'monthly') return Math.max(0, interest - commission)
 
   // Weekly: profit is only counted on the LAST payment
-  if (payment.is_last_payment) return applyCommission(interest, loan)
+  if (payment.is_last_payment) return Math.max(0, interest - commission)
   return 0
 }
 
