@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { formatDate, formatDateTime } from '@/lib/loanUtils'
+import { formatDateTime } from '@/lib/loanUtils'
 import { Banknote, ClipboardList, ChevronDown, ChevronUp, Trash2, Pencil } from 'lucide-react'
 import PageWrapper from '@/components/layout/PageWrapper'
 import Modal from '@/components/ui/Modal'
@@ -285,7 +285,7 @@ function LoanItem({ loan }) {
           </div>
           <div className="flex items-center justify-between text-sm mb-2">
             <span className="text-gray-500">{formatPeso(totalPaid)} / {formatPeso(principal)}</span>
-            <span className="text-gray-400 text-xs">{formatDate(loan.loan_date)}</span>
+            <span className="text-gray-400 text-xs">{formatDateTime(loan.created_at)}</span>
           </div>
           <ProgressBar totalPaid={totalPaid} principal={principal} />
         </div>
