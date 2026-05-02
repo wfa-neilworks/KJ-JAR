@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { format } from 'date-fns'
 import PageWrapper from '@/components/layout/PageWrapper'
 import { useLoans } from '@/hooks/useLoans'
@@ -50,8 +50,9 @@ function LoanRow({ loan, loanType, onClick }) {
 
 export default function Loans() {
   const navigate = useNavigate()
-  const [typeTab, setTypeTab] = useState('All')
-  const [statusTab, setStatusTab] = useState('All')
+  const { state } = useLocation()
+  const [typeTab, setTypeTab] = useState(state?.typeFilter || 'All')
+  const [statusTab, setStatusTab] = useState(state?.statusFilter || 'All')
 
   const { data: weeklyLoans = [], isLoading: wLoading } = useLoans('weekly')
   const { data: monthlyLoans = [], isLoading: mLoading } = useLoans('monthly')

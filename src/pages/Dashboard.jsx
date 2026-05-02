@@ -6,7 +6,6 @@ import PageWrapper from '@/components/layout/PageWrapper'
 import Modal from '@/components/ui/Modal'
 import FAB from '@/components/layout/FAB'
 import { useDashboardStats, useCollectedByMonth } from '@/hooks/usePayments'
-import { useLoans } from '@/hooks/useLoans'
 import { formatPeso } from '@/lib/loanUtils'
 import { format } from 'date-fns'
 
@@ -108,12 +107,10 @@ function CollectedChartModal({ open, onClose, type }) {
 export default function Dashboard({ type }) {
   const isWeekly = type === 'weekly'
   const title = isWeekly ? 'Weekly Dashboard' : 'Monthly Dashboard'
+  const navigate = useNavigate()
   const { data: stats, isLoading: statsLoading } = useDashboardStats(type)
-  const { data: loans = [] } = useLoans(type)
-  const [showActiveLoans, setShowActiveLoans] = useState(false)
   const [showChart, setShowChart] = useState(false)
 
-  const activeLoans = loans.filter((l) => l.status === 'active')
   const loading = statsLoading ? '...' : null
 
   return (
@@ -151,15 +148,10 @@ export default function Dashboard({ type }) {
           label="Active Loans"
           value={loading || String(stats?.activeCount || 0)}
           sublabel="Tap to view list"
-          onClick={() => setShowActiveLoans(true)}
+          onClick={() => navigate('/loans', { state: { typeFilter: isWeekly ? 'Weekly' : 'Monthly', statusFilter: 'Active' } })}
         />
       </div>
 
-      <ActiveLoansModal
-        open={showActiveLoans}
-        onClose={() => setShowActiveLoans(false)}
-        loans={activeLoans}
-      />
       <CollectedChartModal
         open={showChart}
         onClose={() => setShowChart(false)}
