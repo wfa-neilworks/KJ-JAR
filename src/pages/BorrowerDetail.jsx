@@ -9,7 +9,7 @@ import Input from '@/components/ui/Input'
 import { useBorrowers, useEditBorrower } from '@/hooks/useBorrowers'
 import { useLoansByBorrower, useEditLoan, useEditPayment, useDeleteLoan, useRenewLoan } from '@/hooks/useLoans'
 import { useSettleLoansByBorrower, useDeleteSettleLoan, useDeleteSettlePayment, useEditSettleLoan, useEditSettlePayment } from '@/hooks/useSettle'
-import { useCollectLapseFee } from '@/hooks/usePayments'
+import { useCollectLapseFee, useMarkPaid } from '@/hooks/usePayments'
 import { useToast } from '@/components/ui/Toast'
 import { formatPeso } from '@/lib/loanUtils'
 
@@ -313,19 +313,88 @@ function RenewLoanModal({ loan, onClose }) {
   )
 }
 
+function CollectWeekModal({ payment, loan, markPaid, onClose }) {
+  const toast = useToast()
+  const [note, setNote] = useState('')
+
+  const handleCollect = async () => {
+    try {
+      await markPaid.mutateAsync({
+        paymentId: payment.id,
+        loanId: loan.id,
+        collectionType: 'complete',
+        amountPaid: Number(payment.amount_due),
+        rolloverAmount: null,
+        interestRate: Number(loan.interest_rate),
+        principal: Number(loan.principal),
+        note,
+        dueDate: payment.due_date,
+      })
+      toast({ message: 'Payment recorded!', type: 'success' })
+      onClose()
+    } catch {
+      toast({ message: 'Failed to record payment', type: 'error' })
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="bg-gray-50 rounded-xl p-4 flex flex-col gap-2 text-sm">
+        <div className="flex justify-between">
+          <span className="text-gray-500">Week</span>
+          <span className="font-medium text-gray-900">Week {payment.week_number}</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-gray-500">Amount</span>
+          <span className="font-semibold text-gray-900">{formatPeso(payment.amount_due)}</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-gray-500">Due Date</span>
+          <span className="text-gray-700">{format(new Date(payment.due_date), 'MMM d, yyyy')}</span>
+        </div>
+      </div>
+      <div className="flex flex-col gap-1">
+        <label className="text-sm font-medium text-gray-700">Note <span className="text-gray-400 font-normal">(optional)</span></label>
+        <textarea
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          placeholder="e.g. Early payment..."
+          rows={2}
+          className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+        />
+      </div>
+      <div className="flex gap-3">
+        <Button variant="outline" size="full" onClick={onClose}>Cancel</Button>
+        <Button size="full" onClick={handleCollect} disabled={markPaid.isPending}>
+          {markPaid.isPending ? 'Collecting...' : 'Confirm Collect'}
+        </Button>
+      </div>
+    </div>
+  )
+}
+
 function LoanCard({ loan }) {
   const toast = useToast()
   const collectLapseFee = useCollectLapseFee()
+  const markPaid = useMarkPaid()
   const deleteLoan = useDeleteLoan()
   const [expanded, setExpanded] = useState(false)
   const [editLoan, setEditLoan] = useState(false)
   const [editPayment, setEditPayment] = useState(null)
   const [collectingLapseFee, setCollectingLapseFee] = useState(null)
+  const [collectingWeek, setCollectingWeek] = useState(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [renewing, setRenewing] = useState(false)
 
   const paidPayments = loan.payments?.filter((p) => p.paid_at && !p.is_renewal_marker) || []
   const canRenew = loan.type === 'weekly' && loan.status === 'active' && paidPayments.length >= 1
+
+  // The one unpaid non-lapse row with the lowest week_number — the next collectible week
+  const nextCollectible = loan.type === 'weekly' && loan.status === 'active'
+    ? (loan.payments || [])
+        .filter((p) => !p.paid_at && !p.is_lapse_fee)
+        .sort((a, b) => a.week_number - b.week_number)[0] ?? null
+    : null
 
   const handleCollectLapseFee = async () => {
     try {
@@ -481,6 +550,14 @@ function LoanCard({ loan }) {
                         <span className={`font-semibold ${p.paid_at && !isLapsed ? 'text-green-600' : isLapsed ? 'text-red-500' : isUnpaidLapseFee ? 'text-yellow-700' : 'text-gray-800'}`}>
                           {p.paid_at && p.amount_paid != null ? formatPeso(p.amount_paid) : formatPeso(p.amount_due)}
                         </span>
+                        {!p.paid_at && nextCollectible?.id === p.id && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setCollectingWeek(p) }}
+                            className="text-xs font-semibold px-2.5 py-1 rounded-full bg-green-500 text-white hover:bg-green-600 transition-colors"
+                          >
+                            Collect
+                          </button>
+                        )}
                         {p.paid_at && !isUnpaidLapseFee && (
                           <button
                             onClick={(e) => { e.stopPropagation(); setEditPayment(p) }}
@@ -577,6 +654,18 @@ function LoanCard({ loan }) {
             payment={editPayment}
             loan={loan}
             onClose={() => setEditPayment(null)}
+          />
+        )}
+      </Modal>
+
+      {/* Collect Week Modal */}
+      <Modal open={!!collectingWeek} onClose={() => setCollectingWeek(null)} title={collectingWeek ? `Collect Week ${collectingWeek.week_number}` : ''}>
+        {collectingWeek && (
+          <CollectWeekModal
+            payment={collectingWeek}
+            loan={loan}
+            markPaid={markPaid}
+            onClose={() => setCollectingWeek(null)}
           />
         )}
       </Modal>
