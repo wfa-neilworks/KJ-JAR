@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { differenceInCalendarDays } from 'date-fns'
-import { CheckCircle } from 'lucide-react'
+import { CheckCircle, Download } from 'lucide-react'
 import PageWrapper from '@/components/layout/PageWrapper'
 import Modal from '@/components/ui/Modal'
 import Button from '@/components/ui/Button'
@@ -10,6 +10,7 @@ import { useUpcomingPayments, useMarkPaid } from '@/hooks/usePayments'
 import { useRenewLoan } from '@/hooks/useLoans'
 import { useToast } from '@/components/ui/Toast'
 import { formatPeso, formatDate, formatDateTime } from '@/lib/loanUtils'
+import { useInstallPrompt } from '@/lib/useInstallPrompt'
 import { cn } from '@/lib/utils'
 
 function getDayDiff(dueDateStr) {
@@ -392,6 +393,8 @@ export default function Home() {
   const markPaid = useMarkPaid()
   const [selected, setSelected] = useState(null)
   const [filter, setFilter] = useState('all')
+  const [installDismissed, setInstallDismissed] = useState(false)
+  const { canInstall, install } = useInstallPrompt()
 
   const sorted = [...payments]
     .filter((p) => filter === 'all' || p.loan?.type === filter)
@@ -399,6 +402,22 @@ export default function Home() {
 
   return (
     <PageWrapper title="Collections">
+      {canInstall && !installDismissed && (
+        <div className="bg-teal-600 text-white rounded-xl px-4 py-3 flex items-center gap-3 mb-3">
+          <Download size={18} className="shrink-0" />
+          <div className="flex-1">
+            <p className="text-sm font-semibold">Install JAR App</p>
+            <p className="text-xs text-teal-200">Tap to add to your home screen</p>
+          </div>
+          <button
+            onClick={install}
+            className="bg-white text-teal-700 text-xs font-bold px-3 py-1.5 rounded-lg shrink-0"
+          >
+            Install
+          </button>
+          <button onClick={() => setInstallDismissed(true)} className="text-teal-300 text-lg leading-none shrink-0">✕</button>
+        </div>
+      )}
       <div className="flex gap-2 mb-3">
         {[
           { value: 'all', label: 'All' },
