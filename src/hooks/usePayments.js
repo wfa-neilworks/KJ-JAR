@@ -154,9 +154,13 @@ export function useCollectLapseFee() {
   })
 }
 
-function commissionAmount(loan) {
-  if (!loan?.commission_rate) return 0
-  return Number(loan.principal) * (Number(loan.commission_rate) / 100)
+// Commission is commission_rate% of the interest portion of a payment.
+// e.g. 20% interest, 10% MM commission → commission = interest × (10/20) = 50% of interest
+// This correctly handles rollovers where the effective principal has changed.
+function afterCommission(interestAmt, loan) {
+  if (!loan?.commission_rate || !loan?.interest_rate) return interestAmt
+  const commissionFraction = Number(loan.commission_rate) / Number(loan.interest_rate)
+  return interestAmt * (1 - commissionFraction)
 }
 
 function interestPortion(payment) {
@@ -169,19 +173,22 @@ function interestPortion(payment) {
   const principal = Number(loan.principal)
   const rate = Number(loan.interest_rate)
   const interest = principal * (rate / 100)
-  const commission = commissionAmount(loan)
 
-  // Lapse fee row — profit only when actually collected (paid_at set)
-  // Lapse fee is just the interest amount, commission still applies
-  if (payment.is_lapse_fee) return Math.max(0, Number(payment.amount_due) - commission)
+  // Lapse fee row — the fee amount IS the interest; apply commission
+  if (payment.is_lapse_fee) return afterCommission(Number(payment.amount_due), loan)
 
-  // Renewal marker — books the full interest of the old cycle as profit
-  if (payment.is_renewal_marker) return Math.max(0, interest - commission)
+  // Renewal marker — books full interest of old cycle; apply commission
+  if (payment.is_renewal_marker) return afterCommission(interest, loan)
 
-  if (loan.type === 'monthly') return Math.max(0, interest - commission)
+  if (loan.type === 'monthly') {
+    // For rollovers, actual interest = amount_due × rate/(1+rate)
+    // e.g. amount_due=6000, rate=20% → interest = 6000 × (0.2/1.2) = 1000
+    const actualInterest = Number(payment.amount_due) * (rate / 100) / (1 + rate / 100)
+    return afterCommission(actualInterest, loan)
+  }
 
   // Weekly: profit is only counted on the LAST payment
-  if (payment.is_last_payment) return Math.max(0, interest - commission)
+  if (payment.is_last_payment) return afterCommission(interest, loan)
   return 0
 }
 

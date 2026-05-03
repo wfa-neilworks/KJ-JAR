@@ -49,7 +49,9 @@ export default function NewLoan() {
     if (!rate) return null
     const total = calcTotalDue(p, rate)
     const grossInterest = p * (rate / 100)
-    const commissionAmt = form.commission && form.commission_rate ? p * (form.commission_rate / 100) : 0
+    const commissionAmt = form.commission && form.commission_rate
+      ? grossInterest * (form.commission_rate / rate)
+      : 0
     const netProfit = grossInterest - commissionAmt
     if (form.type === 'weekly') {
       const weekly = calcWeeklyAmount(p, form.weeks)
