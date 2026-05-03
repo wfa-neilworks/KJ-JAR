@@ -321,10 +321,11 @@ function CollectModal({ payment, loan, markPaid, onClose }) {
   const [note, setNote] = useState('')
 
   const isMonthly = loan.type === 'monthly'
-  const principal = Number(loan.principal)
   const rate = Number(loan.interest_rate)
-  const interest = principal * (rate / 100)
   const amountDue = Number(payment.amount_due)
+  // Derive interest from amount_due so rollovers use their own capital, not the original principal
+  const interest = isMonthly ? amountDue * (rate / 100) / (1 + rate / 100) : amountDue * (rate / 100) / (1 + rate / 100)
+  const effectiveCapital = amountDue - interest
 
   const requestConfirm = (type) => {
     if (type === 'partial') {
@@ -345,7 +346,7 @@ function CollectModal({ payment, loan, markPaid, onClose }) {
       rolloverAmount = null
     } else if (pendingType === 'interest_only') {
       amountPaid = interest
-      rolloverAmount = principal
+      rolloverAmount = effectiveCapital
     } else if (pendingType === 'partial') {
       amountPaid = parseFloat(partialAmount)
       rolloverAmount = amountDue - amountPaid
@@ -359,7 +360,7 @@ function CollectModal({ payment, loan, markPaid, onClose }) {
         amountPaid,
         rolloverAmount,
         interestRate: rate,
-        principal,
+        principal: effectiveCapital,
         note,
         dueDate: payment.due_date,
       })
@@ -377,7 +378,7 @@ function CollectModal({ payment, loan, markPaid, onClose }) {
           <>
             <div className="flex justify-between">
               <span className="text-gray-500">Capital</span>
-              <span className="text-gray-700">{formatPeso(principal)}</span>
+              <span className="text-gray-700">{formatPeso(effectiveCapital)}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-gray-500">Interest ({rate}%)</span>

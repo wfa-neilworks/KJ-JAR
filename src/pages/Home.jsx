@@ -75,10 +75,11 @@ function CollectionModal({ selected, payments, onClose, markPaid }) {
   const loan = selected.loan
   const isMonthly = loan?.type === 'monthly'
   const isWeekly = loan?.type === 'weekly'
-  const principal = Number(loan?.principal || 0)
   const rate = Number(loan?.interest_rate || 0)
-  const interest = principal * (rate / 100)
   const amountDue = Number(selected.amount_due)
+  // Derive interest from amount_due so rollovers use their own capital, not the original principal
+  const interest = amountDue * (rate / 100) / (1 + rate / 100)
+  const effectiveCapital = amountDue - interest
   // Renew only available for weekly loans where at least 1 prior payment exists (week_number > 1)
   const canRenew = isWeekly && selected.week_number > 1
 
@@ -120,7 +121,7 @@ function CollectionModal({ selected, payments, onClose, markPaid }) {
       rolloverAmount = null
     } else if (collectionType === 'interest_only') {
       amountPaid = interest
-      rolloverAmount = principal
+      rolloverAmount = effectiveCapital
     } else if (collectionType === 'partial') {
       amountPaid = parseFloat(partialAmount)
       rolloverAmount = amountDue - amountPaid
@@ -135,7 +136,7 @@ function CollectionModal({ selected, payments, onClose, markPaid }) {
         amountPaid,
         rolloverAmount,
         interestRate: rate,
-        principal,
+        principal: effectiveCapital,
         note,
         dueDate: selected.due_date,
       })
@@ -166,7 +167,7 @@ function CollectionModal({ selected, payments, onClose, markPaid }) {
           <>
             <div className="flex justify-between text-sm">
               <span className="text-gray-500">Capital</span>
-              <span className="text-gray-700">{formatPeso(principal)}</span>
+              <span className="text-gray-700">{formatPeso(effectiveCapital)}</span>
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-gray-500">Interest ({rate}%)</span>
