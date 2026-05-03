@@ -1,9 +1,11 @@
-import { LogOut } from 'lucide-react'
+import { LogOut, Download } from 'lucide-react'
 import jarLogo from '@/assets/JAR-LOGO-CROPPED.png'
 import { supabase } from '@/lib/supabase'
+import { useInstallPrompt } from '@/lib/useInstallPrompt'
 
 export default function PageWrapper({ title, children, action }) {
   const handleLogout = () => supabase.auth.signOut()
+  const { canInstall, install } = useInstallPrompt()
 
   return (
     <div className="flex flex-col min-h-screen bg-gray-50 w-full">
@@ -14,6 +16,15 @@ export default function PageWrapper({ title, children, action }) {
         </div>
         <div className="flex items-center gap-2">
           {action && <div>{action}</div>}
+          {canInstall && (
+            <button
+              onClick={install}
+              className="p-1.5 rounded-full hover:bg-teal-50 text-teal-500 hover:text-teal-700"
+              title="Install app"
+            >
+              <Download size={17} />
+            </button>
+          )}
           <button
             onClick={handleLogout}
             className="p-1.5 rounded-full hover:bg-gray-100 text-gray-400 hover:text-gray-600"

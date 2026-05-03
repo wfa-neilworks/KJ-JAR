@@ -1,28 +1,12 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Download } from 'lucide-react'
+import { useInstallPrompt } from '@/lib/useInstallPrompt'
 
 export default function InstallPrompt() {
-  const [prompt, setPrompt] = useState(null)
-  const [show, setShow] = useState(false)
+  const { canInstall, install } = useInstallPrompt()
+  const [dismissed, setDismissed] = useState(false)
 
-  useEffect(() => {
-    const handler = (e) => {
-      e.preventDefault()
-      setPrompt(e)
-      setShow(true)
-    }
-    window.addEventListener('beforeinstallprompt', handler)
-    return () => window.removeEventListener('beforeinstallprompt', handler)
-  }, [])
-
-  const install = async () => {
-    if (!prompt) return
-    prompt.prompt()
-    const { outcome } = await prompt.userChoice
-    if (outcome === 'accepted') setShow(false)
-  }
-
-  if (!show) return null
+  if (!canInstall || dismissed) return null
 
   return (
     <div className="fixed bottom-20 left-4 right-4 z-50 bg-teal-700 text-white rounded-2xl shadow-lg px-4 py-3 flex items-center gap-3">
@@ -38,7 +22,7 @@ export default function InstallPrompt() {
         Install
       </button>
       <button
-        onClick={() => setShow(false)}
+        onClick={() => setDismissed(true)}
         className="text-teal-300 text-xs px-1 shrink-0"
       >
         ✕
