@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ToastProvider } from '@/components/ui/Toast'
 import { AuthProvider, useAuth } from '@/lib/AuthContext'
 import BottomNav from '@/components/layout/BottomNav'
+import InstallPrompt from '@/components/layout/InstallPrompt'
 import Home from '@/pages/Home'
 import Dashboard from '@/pages/Dashboard'
 import DashboardSettle from '@/pages/DashboardSettle'
@@ -50,6 +51,7 @@ function AppRoutes() {
         <Route path="/new-loan" element={<NewLoan />} />
       </Routes>
       <BottomNav />
+      <InstallPrompt />
     </div>
   )
 }
