@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { differenceInCalendarDays } from 'date-fns'
-import { CheckCircle, Download } from 'lucide-react'
+import { CheckCircle, Download, ChevronDown, ChevronUp } from 'lucide-react'
 import PageWrapper from '@/components/layout/PageWrapper'
 import Modal from '@/components/ui/Modal'
 import Button from '@/components/ui/Button'
@@ -388,6 +388,51 @@ function CollectionModal({ selected, payments, onClose, markPaid }) {
   )
 }
 
+const GROUPS = [
+  { key: 'overdue',  label: 'Overdue',   filter: (d) => d < 0,  badge: 'bg-red-500 text-white',          header: 'bg-red-50 border-red-200 text-red-700',    defaultOpen: false },
+  { key: 'today',   label: 'Today',     filter: (d) => d === 0, badge: 'bg-orange-500 text-white',       header: 'bg-orange-50 border-orange-200 text-orange-700', defaultOpen: true },
+  { key: 'tomorrow',label: 'Tomorrow',  filter: (d) => d === 1, badge: 'bg-yellow-400 text-gray-900',    header: 'bg-yellow-50 border-yellow-200 text-yellow-700', defaultOpen: true },
+  { key: 'in2days', label: 'In 2 Days', filter: (d) => d === 2, badge: 'bg-green-400 text-white',        header: 'bg-green-50 border-green-200 text-green-700',  defaultOpen: false },
+]
+
+function CollectionGroups({ payments, onPay }) {
+  const [open, setOpen] = useState(() =>
+    Object.fromEntries(GROUPS.map((g) => [g.key, g.defaultOpen]))
+  )
+
+  const toggle = (key) => setOpen((o) => ({ ...o, [key]: !o[key] }))
+
+  return (
+    <div className="flex flex-col gap-2">
+      {GROUPS.map((g) => {
+        const items = payments.filter((p) => g.filter(getDayDiff(p.due_date)))
+        if (items.length === 0) return null
+        return (
+          <div key={g.key} className="flex flex-col gap-1">
+            <button
+              onClick={() => toggle(g.key)}
+              className={`flex items-center justify-between px-3 py-2 rounded-xl border font-medium text-sm ${g.header}`}
+            >
+              <div className="flex items-center gap-2">
+                <span>{g.label}</span>
+                <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${g.badge}`}>{items.length}</span>
+              </div>
+              {open[g.key] ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+            </button>
+            {open[g.key] && (
+              <div className="flex flex-col gap-1.5 pl-1">
+                {items.map((p) => (
+                  <PaymentItem key={p.id} payment={p} onPay={onPay} />
+                ))}
+              </div>
+            )}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 export default function Home() {
   const { data: payments = [], isLoading } = useUpcomingPayments()
   const markPaid = useMarkPaid()
@@ -447,11 +492,7 @@ export default function Home() {
           </p>
         </div>
       ) : (
-        <div className="flex flex-col gap-2">
-          {sorted.map((p) => (
-            <PaymentItem key={p.id} payment={p} onPay={setSelected} />
-          ))}
-        </div>
+        <CollectionGroups payments={sorted} onPay={setSelected} />
       )}
 
       <Modal
