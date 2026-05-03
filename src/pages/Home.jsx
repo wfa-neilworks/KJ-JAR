@@ -102,7 +102,7 @@ function CollectionModal({ selected, payments, onClose, markPaid }) {
       await renewLoan.mutateAsync({
         loanId: selected.loan_id,
         newPrincipal: amt,
-        oldPrincipal: principal,
+        oldPrincipal: effectiveCapital,
         interestRate: rate,
       })
       toast({ message: 'Loan renewed!', type: 'success' })
@@ -193,7 +193,7 @@ function CollectionModal({ selected, payments, onClose, markPaid }) {
 
           {canRenew && (
             <button
-              onClick={() => { setRenewPrincipal(String(principal)); setStep('renew') }}
+              onClick={() => { setRenewPrincipal(String(effectiveCapital)); setStep('renew') }}
               className="w-full text-left rounded-xl border-2 border-purple-200 bg-purple-50 px-4 py-3 hover:border-purple-400 transition-colors"
             >
               <p className="font-semibold text-purple-700">Renew Loan</p>
@@ -210,7 +210,7 @@ function CollectionModal({ selected, payments, onClose, markPaid }) {
             >
               <p className="font-semibold text-blue-700">Interest Only</p>
               <p className="text-sm text-blue-600 mt-0.5">
-                Collect {formatPeso(interest)} now — capital {formatPeso(principal)} rolls over next month
+                Collect {formatPeso(interest)} now — capital {formatPeso(effectiveCapital)} rolls over next month
               </p>
             </button>
           )}
@@ -356,9 +356,9 @@ function CollectionModal({ selected, payments, onClose, markPaid }) {
             </p>
             <p className="text-sm text-gray-600">
               {pendingType === 'complete' && `Collect ${formatPeso(amountDue)} — this loan will be marked complete.`}
-              {pendingType === 'interest_only' && `Collect ${formatPeso(interest)} interest. Capital ${formatPeso(principal)} rolls over next month.`}
+              {pendingType === 'interest_only' && `Collect ${formatPeso(interest)} interest. Capital ${formatPeso(effectiveCapital)} rolls over next month.`}
               {pendingType === 'partial' && `Collect ${formatPeso(parseFloat(partialAmount))}. Remaining ${formatPeso(amountDue - parseFloat(partialAmount))} + ${rate}% interest due next month.`}
-              {pendingType === 'lapsed' && `Interest ${formatPeso(interest)} logged as unpaid debt. Capital ${formatPeso(principal)} rolls over next month.`}
+              {pendingType === 'lapsed' && `Interest ${formatPeso(interest)} logged as unpaid debt. Capital ${formatPeso(effectiveCapital)} rolls over next month.`}
             </p>
             {note && <p className="text-xs text-gray-400 mt-2 italic">Note: "{note}"</p>}
           </div>
