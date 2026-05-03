@@ -423,7 +423,7 @@ function CollectModal({ payment, loan, markPaid, onClose }) {
               className="w-full text-left rounded-xl border-2 border-blue-200 bg-blue-50 px-4 py-3 hover:border-blue-400 transition-colors"
             >
               <p className="font-semibold text-blue-700">Interest Only</p>
-              <p className="text-sm text-blue-600 mt-0.5">Collect {formatPeso(interest)} now — capital {formatPeso(principal)} rolls over next month</p>
+              <p className="text-sm text-blue-600 mt-0.5">Collect {formatPeso(interest)} now — capital {formatPeso(effectiveCapital)} rolls over next month</p>
             </button>
           )}
 
