@@ -44,17 +44,21 @@ const PH_TZ = 'Asia/Manila'
 // Date-only display: "May 2, 2026"
 export function formatDate(dateStr) {
   if (!dateStr) return ''
+  // Append time to avoid UTC-to-local shift on date-only strings
+  const normalized = dateStr.length === 10 ? dateStr + 'T00:00:00' : dateStr
   return new Intl.DateTimeFormat('en-PH', {
     timeZone: PH_TZ,
     year: 'numeric',
     month: 'short',
     day: 'numeric',
-  }).format(new Date(dateStr))
+  }).format(new Date(normalized))
 }
 
 // Full timestamp display: "May 2, 2026 3:45 PM"
 export function formatDateTime(dateStr) {
   if (!dateStr) return ''
+  // Append time to avoid UTC-to-local shift on date-only strings
+  const normalized = dateStr.length === 10 ? dateStr + 'T00:00:00' : dateStr
   return new Intl.DateTimeFormat('en-PH', {
     timeZone: PH_TZ,
     year: 'numeric',
@@ -63,5 +67,5 @@ export function formatDateTime(dateStr) {
     hour: 'numeric',
     minute: '2-digit',
     hour12: true,
-  }).format(new Date(dateStr))
+  }).format(new Date(normalized))
 }

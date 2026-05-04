@@ -80,6 +80,7 @@ export function useEditLoan() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['loans'] })
+      qc.invalidateQueries({ queryKey: ['payments'] })
       qc.invalidateQueries({ queryKey: ['dashboard-stats'] })
     },
   })
