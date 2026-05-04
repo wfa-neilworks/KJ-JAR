@@ -9,14 +9,14 @@ import FAB from '@/components/layout/FAB'
 import { useUpcomingPayments, useMarkPaid } from '@/hooks/usePayments'
 import { useRenewLoan } from '@/hooks/useLoans'
 import { useToast } from '@/components/ui/Toast'
-import { formatPeso, formatDate, formatDateTime } from '@/lib/loanUtils'
+import { formatPeso, formatDate, formatDateTime, parseLocalDate } from '@/lib/loanUtils'
 import { useInstallPrompt } from '@/lib/useInstallPrompt'
 import { cn } from '@/lib/utils'
 
 function getDayDiff(dueDateStr) {
   const today = new Date()
   today.setHours(0, 0, 0, 0)
-  const due = new Date(dueDateStr)
+  const due = parseLocalDate(dueDateStr)
   due.setHours(0, 0, 0, 0)
   return differenceInCalendarDays(due, today)
 }

@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { format, addDays, addMonths, startOfDay } from 'date-fns'
+import { parseLocalDate } from '@/lib/loanUtils'
 
 export function useUpcomingPayments() {
   return useQuery({
@@ -29,7 +30,7 @@ export function useMarkPaid() {
     mutationFn: async ({ paymentId, loanId, collectionType, amountPaid, rolloverAmount, interestRate, principal, note, dueDate }) => {
       const now = new Date().toISOString()
       // Use the original due date as the base for next month, not today
-      const dueDateBase = dueDate ? new Date(dueDate) : new Date()
+      const dueDateBase = dueDate ? parseLocalDate(dueDate) : new Date()
 
       if (collectionType === 'lapsed') {
         // Close the original payment row (paid_at = now, amount_paid = 0, type = lapsed)

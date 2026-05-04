@@ -1,5 +1,12 @@
 import { addMonths, addDays, format } from 'date-fns'
 
+// Parse a date-only string (yyyy-MM-dd) as local time, not UTC
+export function parseLocalDate(dateStr) {
+  if (!dateStr) return new Date()
+  if (dateStr.length === 10) return new Date(dateStr + 'T00:00:00')
+  return new Date(dateStr)
+}
+
 export function calcTotalDue(principal, interestRate) {
   return principal * (1 + interestRate / 100)
 }
@@ -9,7 +16,7 @@ export function calcWeeklyAmount(principal, weeks = 6) {
 }
 
 export function generatePayments(loanId, type, principal, interestRate, loanDate, weeks = 6) {
-  const date = new Date(loanDate)
+  const date = parseLocalDate(loanDate)
   if (type === 'monthly') {
     const dueDate = addMonths(date, 1)
     return [

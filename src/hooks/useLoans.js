@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
-import { generatePayments } from '@/lib/loanUtils'
+import { generatePayments, parseLocalDate } from '@/lib/loanUtils'
 import { addDays, addMonths, format } from 'date-fns'
 
 export function useLoans(type) {
@@ -56,7 +56,7 @@ export function useEditLoan() {
           .limit(1)
 
         if (unpaidRows && unpaidRows.length > 0) {
-          const newDueDate = format(addMonths(new Date(loan_date), 1), 'yyyy-MM-dd')
+          const newDueDate = format(addMonths(parseLocalDate(loan_date), 1), 'yyyy-MM-dd')
           await supabase.from('payments').update({ due_date: newDueDate }).eq('id', unpaidRows[0].id)
         }
       }
@@ -70,7 +70,7 @@ export function useEditLoan() {
           .order('week_number', { ascending: true })
 
         if (unpaidRows && unpaidRows.length > 0) {
-          const base = new Date(loan_date)
+          const base = parseLocalDate(loan_date)
           for (const row of unpaidRows) {
             const newDueDate = format(addDays(base, row.week_number * 7), 'yyyy-MM-dd')
             await supabase.from('payments').update({ due_date: newDueDate }).eq('id', row.id)
