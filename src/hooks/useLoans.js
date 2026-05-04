@@ -216,6 +216,7 @@ export function useCreateLoan() {
           total_due: loanData.total_due,
           loan_date: loanData.loan_date,
           commission_rate: loanData.commission_rate || null,
+          weeks: loanData.type === 'weekly' ? (loanData.weeks || 6) : null,
           status: 'active',
         })
         .select()
