@@ -4,7 +4,7 @@ import { Search } from 'lucide-react'
 import PageWrapper from '@/components/layout/PageWrapper'
 import { useLoans } from '@/hooks/useLoans'
 import { useSettleLoans } from '@/hooks/useSettle'
-import { formatPeso, formatDateTime } from '@/lib/loanUtils'
+import { formatPeso, formatDate } from '@/lib/loanUtils'
 import { cn } from '@/lib/utils'
 
 function statusBadge(status) {
@@ -41,7 +41,7 @@ function LoanRow({ loan, loanType, onClick }) {
           {loanType !== 'settle' && (
             <> &nbsp;·&nbsp; {loan.interest_rate}% interest</>
           )}
-          &nbsp;·&nbsp; {formatDateTime(loan.created_at)}
+          &nbsp;·&nbsp; {formatDate(loan.loan_date)}
         </p>
       </div>
     </div>

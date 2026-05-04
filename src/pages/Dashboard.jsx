@@ -6,7 +6,7 @@ import PageWrapper from '@/components/layout/PageWrapper'
 import Modal from '@/components/ui/Modal'
 import FAB from '@/components/layout/FAB'
 import { useDashboardStats, useCollectedByMonth } from '@/hooks/usePayments'
-import { formatPeso, formatDateTime } from '@/lib/loanUtils'
+import { formatPeso, formatDate } from '@/lib/loanUtils'
 
 const tileConfig = {
   lent:        { icon: Banknote,      bg: 'bg-blue-500',   light: 'bg-blue-50',   border: 'border-blue-100', text: 'text-blue-600' },
@@ -57,7 +57,7 @@ function ActiveLoansModal({ open, onClose, loans }) {
               <div className="flex-1">
                 <p className="font-medium text-gray-900">{loan.borrower?.name}</p>
                 <p className="text-xs text-gray-500">
-                  {formatDateTime(loan.created_at)} · {loan.interest_rate}% interest
+                  {formatDate(loan.loan_date)} · {loan.interest_rate}% interest
                 </p>
               </div>
               <div className="text-right">
