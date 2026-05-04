@@ -587,7 +587,7 @@ function LoanCard({ loan }) {
           <div className="flex items-baseline gap-3 mt-0.5">
             <span className="font-semibold text-gray-900">{formatPeso(loan.principal)}</span>
             <span className="text-xs text-gray-400">{loan.interest_rate}% interest</span>
-            <span className="text-xs text-gray-400">{formatDateTime(loan.created_at)}</span>
+            <span className="text-xs text-gray-400">{formatDate(loan.loan_date)}</span>
           </div>
           {loan.type === 'weekly' && (
             <p className="text-xs text-gray-400">{paidCount} of {totalCount} payments collected</p>
@@ -935,7 +935,7 @@ function SettleLoanCard({ loan }) {
           <div className="flex items-baseline gap-3 mt-0.5">
             <span className="font-semibold text-gray-900">{formatPeso(principal)}</span>
             <span className="text-xs text-gray-400">No interest</span>
-            <span className="text-xs text-gray-400">{formatDateTime(loan.created_at)}</span>
+            <span className="text-xs text-gray-400">{formatDate(loan.loan_date)}</span>
           </div>
           <div className="w-full bg-gray-200 rounded-full h-1.5 mt-0.5">
             <div className="bg-teal-500 h-1.5 rounded-full transition-all" style={{ width: `${pct}%` }} />
