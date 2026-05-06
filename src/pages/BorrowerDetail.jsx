@@ -1097,6 +1097,7 @@ export default function BorrowerDetail() {
   const { data: settleLoans = [], isLoading: settleLoading } = useSettleLoansByBorrower(id)
   const [editBorrower, setEditBorrower] = useState(false)
   const [filter, setFilter] = useState('all')
+  const [showRecord, setShowRecord] = useState(false)
 
   const borrower = borrowers.find((b) => b.id === id)
 
@@ -1176,9 +1177,17 @@ export default function BorrowerDetail() {
         </div>
       </div>
 
-      <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-2">
-        Loan History
-      </h2>
+      <div className="flex items-center justify-between mb-2">
+        <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Loan History</h2>
+        {[...loans, ...settleLoans].some((l) => l.status === 'completed') && (
+          <button
+            onClick={() => setShowRecord(true)}
+            className="text-xs font-medium text-gray-500 border border-gray-300 px-3 py-1 rounded-lg hover:bg-gray-50"
+          >
+            Record
+          </button>
+        )}
+      </div>
 
       {/* Dynamic filter tabs */}
       {!isLoading && hasAny && tabs.length > 1 && (
@@ -1213,6 +1222,34 @@ export default function BorrowerDetail() {
 
       <Modal open={editBorrower} onClose={() => setEditBorrower(false)} title="Edit Borrower">
         <EditBorrowerModal borrower={borrower} onClose={() => setEditBorrower(false)} />
+      </Modal>
+
+      <Modal open={showRecord} onClose={() => setShowRecord(false)} title="Completed Loans">
+        <div className="flex flex-col gap-3">
+          {[...loans, ...settleLoans]
+            .filter((l) => l.status === 'completed')
+            .sort((a, b) => new Date(b.loan_date) - new Date(a.loan_date))
+            .map((l) => (
+              <div key={l.id} className="bg-gray-50 rounded-xl border border-gray-200 px-4 py-3 flex flex-col gap-1">
+                <div className="flex items-center gap-2">
+                  <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                    l.type === 'weekly' ? 'bg-purple-100 text-purple-700' :
+                    l.type === 'monthly' ? 'bg-blue-100 text-blue-700' :
+                    'bg-teal-100 text-teal-700'
+                  }`}>
+                    {l.type === 'settle' ? 'To Settle' : l.type.charAt(0).toUpperCase() + l.type.slice(1)}
+                  </span>
+                  <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-gray-200 text-gray-500">completed</span>
+                </div>
+                <div className="flex items-baseline gap-3 mt-0.5">
+                  <span className="font-semibold text-gray-900">{formatPeso(l.principal)}</span>
+                  {l.interest_rate && <span className="text-xs text-gray-400">{l.interest_rate}% interest</span>}
+                  <span className="text-xs text-gray-400">{formatDate(l.loan_date)}</span>
+                </div>
+              </div>
+            ))
+          }
+        </div>
       </Modal>
     </PageWrapper>
   )
