@@ -45,6 +45,9 @@ function PaymentItem({ payment, onPay }) {
         <p className="text-sm text-gray-500">
           {payment.loan?.type === 'weekly' ? `Week ${payment.week_number}` : 'Monthly payment'} &nbsp;·&nbsp; {formatDate(payment.due_date)}
         </p>
+        {payment.loan?.type === 'weekly' && payment.week_number === (payment.loan?.weeks || 6) && (
+          <p className="text-xs font-semibold text-yellow-600 mt-0.5">⭐ TO RENEW ⭐</p>
+        )}
         <p className="text-sm text-gray-400">{payment.loan?.borrower?.mobile}</p>
       </div>
       <div className="text-right">
