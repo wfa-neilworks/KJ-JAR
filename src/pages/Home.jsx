@@ -21,16 +21,29 @@ function getDayDiff(dueDateStr) {
   return differenceInCalendarDays(due, today)
 }
 
-function getChipStyle(diff) {
-  if (diff < 0) return { bg: 'bg-red-50 border-red-200', badge: 'bg-red-500 text-white', label: 'Overdue' }
-  if (diff === 0) return { bg: 'bg-orange-50 border-orange-200', badge: 'bg-orange-500 text-white', label: 'Today' }
-  if (diff === 1) return { bg: 'bg-yellow-50 border-yellow-200', badge: 'bg-yellow-400 text-gray-900', label: 'Tomorrow' }
-  return { bg: 'bg-green-50 border-green-200', badge: 'bg-green-400 text-white', label: 'In 2 days' }
+function getChipStyle(diff, isRenew = false) {
+  if (diff < 0) return {
+    bg: isRenew ? 'bg-red-200 border-red-400' : 'bg-red-50 border-red-200',
+    badge: 'bg-red-500 text-white', label: 'Overdue',
+  }
+  if (diff === 0) return {
+    bg: isRenew ? 'bg-orange-200 border-orange-400' : 'bg-orange-50 border-orange-200',
+    badge: 'bg-orange-500 text-white', label: 'Today',
+  }
+  if (diff === 1) return {
+    bg: isRenew ? 'bg-yellow-200 border-yellow-400' : 'bg-yellow-50 border-yellow-200',
+    badge: 'bg-yellow-400 text-gray-900', label: 'Tomorrow',
+  }
+  return {
+    bg: isRenew ? 'bg-green-200 border-green-400' : 'bg-green-50 border-green-200',
+    badge: 'bg-green-400 text-white', label: 'In 2 days',
+  }
 }
 
 function PaymentItem({ payment, onPay }) {
   const diff = getDayDiff(payment.due_date)
-  const { bg, badge, label } = getChipStyle(diff)
+  const isRenew = payment.loan?.type === 'weekly' && payment.week_number === (payment.loan?.weeks || 6)
+  const { bg, badge, label } = getChipStyle(diff, isRenew)
 
   return (
     <div
@@ -45,12 +58,10 @@ function PaymentItem({ payment, onPay }) {
         <p className="text-sm text-gray-500">
           {payment.loan?.type === 'weekly' ? `Week ${payment.week_number}` : 'Monthly payment'} &nbsp;·&nbsp; {formatDate(payment.due_date)}
         </p>
-        {payment.loan?.type === 'weekly' && payment.week_number === (payment.loan?.weeks || 6) && (
-          <p className="text-xs font-semibold text-yellow-600 mt-0.5">⭐ TO RENEW ⭐</p>
-        )}
         <p className="text-sm text-gray-400">{payment.loan?.borrower?.mobile}</p>
       </div>
       <div className="text-right">
+        {isRenew && <p className="text-xs font-bold text-yellow-700 mb-0.5">⭐ TO RENEW ⭐</p>}
         <p className="font-semibold text-gray-900">{formatPeso(payment.amount_due)}</p>
         <p className="text-xs text-gray-400 capitalize">{payment.loan?.type}</p>
       </div>
