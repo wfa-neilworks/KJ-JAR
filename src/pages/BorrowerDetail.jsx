@@ -1089,6 +1089,84 @@ function SettleLoanCard({ loan }) {
   )
 }
 
+function CompletedLoansRecord({ loans }) {
+  const [openId, setOpenId] = useState(null)
+  const sorted = [...loans].sort((a, b) => new Date(b.loan_date) - new Date(a.loan_date))
+
+  if (sorted.length === 0) return <p className="text-sm text-gray-400 text-center py-4">No completed loans.</p>
+
+  return (
+    <div className="flex flex-col gap-2">
+      {sorted.map((l) => {
+        const isSettle = !l.type || l.type === 'settle'
+        const isOpen = openId === l.id
+        const payments = l.payments || []
+
+        return (
+          <div key={l.id} className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+            <button
+              className="w-full px-4 py-3 flex items-center gap-3 text-left hover:bg-gray-50 transition-colors"
+              onClick={() => setOpenId(isOpen ? null : l.id)}
+            >
+              <div className="flex-1 flex flex-col gap-1">
+                <div className="flex items-center gap-2">
+                  <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                    l.type === 'weekly' ? 'bg-purple-100 text-purple-700' :
+                    l.type === 'monthly' ? 'bg-blue-100 text-blue-700' :
+                    'bg-teal-100 text-teal-700'
+                  }`}>
+                    {isSettle ? 'To Settle' : l.type.charAt(0).toUpperCase() + l.type.slice(1)}
+                  </span>
+                  <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">completed</span>
+                </div>
+                <div className="flex items-baseline gap-3 mt-0.5">
+                  <span className="font-semibold text-gray-900">{formatPeso(l.principal)}</span>
+                  {l.interest_rate && <span className="text-xs text-gray-400">{l.interest_rate}% interest</span>}
+                  <span className="text-xs text-gray-400">{formatDate(l.loan_date)}</span>
+                </div>
+              </div>
+              {isOpen ? <ChevronUp size={16} className="text-gray-400 shrink-0" /> : <ChevronDown size={16} className="text-gray-400 shrink-0" />}
+            </button>
+
+            {isOpen && payments.length > 0 && (
+              <div className="px-4 pb-4 border-t border-gray-100 flex flex-col gap-1.5 pt-3">
+                <p className="text-xs font-medium text-gray-600 uppercase tracking-wide mb-1">Payments</p>
+                {payments
+                  .filter((p) => !p.is_renewal_marker)
+                  .sort((a, b) => a.week_number - b.week_number)
+                  .map((p) => {
+                    const isLapsed = p.collection_type === 'lapsed' && p.paid_at
+                    const rowBg = p.paid_at && !isLapsed ? 'bg-green-50' : isLapsed ? 'bg-red-50' : 'bg-gray-50'
+                    return (
+                      <div key={p.id} className={`flex flex-col gap-1 text-sm py-2 px-3 rounded-lg ${rowBg}`}>
+                        <div className="flex items-center justify-between">
+                          <span className="text-gray-600">
+                            {isSettle ? `Payment` : l.type === 'weekly' ? `Week ${p.week_number}` : `Payment #${p.week_number}`}
+                            {' — '}
+                            {p.paid_at ? formatDateTime(p.paid_at) : `Due ${formatDate(p.due_date)}`}
+                          </span>
+                          <span className={`font-semibold ${p.paid_at && !isLapsed ? 'text-green-600' : isLapsed ? 'text-red-500' : 'text-gray-800'}`}>
+                            {p.paid_at && p.amount_paid != null ? formatPeso(p.amount_paid) : formatPeso(p.amount_due)}
+                          </span>
+                        </div>
+                        {p.collection_type && (
+                          <span className={`text-xs font-medium px-2 py-0.5 rounded-full w-fit ${collectionBadge[p.collection_type] || collectionBadge.complete}`}>
+                            {collectionLabel[p.collection_type] || 'Complete'}
+                          </span>
+                        )}
+                        {p.note && <span className="text-xs text-gray-500 italic">"{p.note}"</span>}
+                      </div>
+                    )
+                  })}
+              </div>
+            )}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 export default function BorrowerDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -1225,31 +1303,7 @@ export default function BorrowerDetail() {
       </Modal>
 
       <Modal open={showRecord} onClose={() => setShowRecord(false)} title="Completed Loans">
-        <div className="flex flex-col gap-3">
-          {[...loans, ...settleLoans]
-            .filter((l) => l.status === 'completed')
-            .sort((a, b) => new Date(b.loan_date) - new Date(a.loan_date))
-            .map((l) => (
-              <div key={l.id} className="bg-gray-50 rounded-xl border border-gray-200 px-4 py-3 flex flex-col gap-1">
-                <div className="flex items-center gap-2">
-                  <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
-                    l.type === 'weekly' ? 'bg-purple-100 text-purple-700' :
-                    l.type === 'monthly' ? 'bg-blue-100 text-blue-700' :
-                    'bg-teal-100 text-teal-700'
-                  }`}>
-                    {l.type === 'settle' ? 'To Settle' : l.type.charAt(0).toUpperCase() + l.type.slice(1)}
-                  </span>
-                  <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-gray-200 text-gray-500">completed</span>
-                </div>
-                <div className="flex items-baseline gap-3 mt-0.5">
-                  <span className="font-semibold text-gray-900">{formatPeso(l.principal)}</span>
-                  {l.interest_rate && <span className="text-xs text-gray-400">{l.interest_rate}% interest</span>}
-                  <span className="text-xs text-gray-400">{formatDate(l.loan_date)}</span>
-                </div>
-              </div>
-            ))
-          }
-        </div>
+        <CompletedLoansRecord loans={[...loans, ...settleLoans].filter((l) => l.status === 'completed')} />
       </Modal>
     </PageWrapper>
   )
