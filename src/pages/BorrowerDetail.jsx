@@ -1112,14 +1112,14 @@ export default function BorrowerDetail() {
   ]
 
   const isLoading = loansLoading || settleLoading
-  const hasAny = loans.length > 0 || settleLoans.length > 0
+  const hasAny = loans.some((l) => l.status === 'active') || settleLoans.some((l) => l.status === 'active')
 
   const filteredLoans = (filter === 'all' || filter === 'monthly' || filter === 'weekly'
-    ? loans.filter((l) => filter === 'all' || l.type === filter)
+    ? loans.filter((l) => l.status === 'active' && (filter === 'all' || l.type === filter))
     : []
   ).map((l) => ({ ...l, _cardType: 'loan' }))
 
-  const filteredSettle = (filter === 'all' || filter === 'settle' ? settleLoans : []
+  const filteredSettle = (filter === 'all' || filter === 'settle' ? settleLoans.filter((l) => l.status === 'active') : []
   ).map((l) => ({ ...l, _cardType: 'settle' }))
 
   const allLoans = [...filteredLoans, ...filteredSettle].sort((a, b) => {
