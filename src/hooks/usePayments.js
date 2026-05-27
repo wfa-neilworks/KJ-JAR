@@ -110,13 +110,12 @@ export function useMarkPaid() {
         })
         if (rollErr) throw rollErr
       } else {
-        // Check directly in DB whether any other unpaid non-lapse-fee rows remain for this loan
+        // Check directly in DB whether any other unpaid rows remain for this loan
         const { data: remaining } = await supabase
           .from('payments')
           .select('id')
           .eq('loan_id', loanId)
           .is('paid_at', null)
-          .neq('is_lapse_fee', true)
           .neq('id', paymentId)
           .limit(1)
 
