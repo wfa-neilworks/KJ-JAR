@@ -6,7 +6,7 @@ import Modal from '@/components/ui/Modal'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import FAB from '@/components/layout/FAB'
-import { useUpcomingPayments, useMarkPaid, useSkipPayment } from '@/hooks/usePayments'
+import { useUpcomingPayments, useMarkPaid, useSkipPayment, useCollectLapseFee } from '@/hooks/usePayments'
 import Toggle from '@/components/ui/Toggle'
 import { useRenewLoan } from '@/hooks/useLoans'
 import { useToast } from '@/components/ui/Toast'
@@ -41,29 +41,33 @@ function getChipStyle(diff, isRenew = false) {
   }
 }
 
-function PaymentItem({ payment, onPay }) {
+function PaymentItem({ payment, onPay, onCollectLapseFee }) {
   const diff = getDayDiff(payment.due_date)
   const isRenew = payment.loan?.type === 'weekly' && payment.week_number === (payment.loan?.weeks || 6)
+  const isLapseFee = !!payment.is_lapse_fee
   const { bg, badge, label } = getChipStyle(diff, isRenew)
 
   return (
     <div
-      className={cn('rounded-xl border px-4 py-3 flex items-center gap-3 cursor-pointer active:scale-[0.98] transition-transform', bg)}
-      onClick={() => onPay(payment)}
+      className={cn('rounded-xl border px-4 py-3 flex items-center gap-3 cursor-pointer active:scale-[0.98] transition-transform', isLapseFee ? 'bg-yellow-50 border-yellow-200' : bg)}
+      onClick={() => isLapseFee ? onCollectLapseFee(payment) : onPay(payment)}
     >
       <div className="flex-1">
         <div className="flex items-center gap-2 mb-0.5">
           <span className="font-semibold text-gray-900">{payment.loan?.borrower?.name}</span>
-          <span className={cn('text-xs font-medium px-2 py-0.5 rounded-full', badge)}>{label}</span>
+          {isLapseFee
+            ? <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-yellow-200 text-yellow-800">Lapse Interest</span>
+            : <span className={cn('text-xs font-medium px-2 py-0.5 rounded-full', badge)}>{label}</span>
+          }
         </div>
         <p className="text-sm text-gray-500">
-          {payment.loan?.type === 'weekly' ? `Week ${payment.week_number}` : 'Monthly payment'} &nbsp;·&nbsp; {formatDate(payment.due_date)}
+          {isLapseFee ? 'Unpaid lapse interest' : payment.loan?.type === 'weekly' ? `Week ${payment.week_number}` : 'Monthly payment'} &nbsp;·&nbsp; {formatDate(payment.due_date)}
         </p>
         <p className="text-sm text-gray-400">{payment.loan?.borrower?.mobile}</p>
       </div>
       <div className="text-right">
         {isRenew && <p className="text-xs font-bold text-yellow-700 mb-0.5">⭐ TO RENEW ⭐</p>}
-        <p className="font-semibold text-gray-900">{formatPeso(payment.amount_due)}</p>
+        <p className={cn('font-semibold', isLapseFee ? 'text-yellow-700' : 'text-gray-900')}>{formatPeso(payment.amount_due)}</p>
         <p className="text-xs text-gray-400 capitalize">{payment.loan?.type}</p>
       </div>
     </div>
@@ -445,7 +449,7 @@ const GROUPS = [
   { key: 'in2days', label: 'In 2 Days', filter: (d) => d === 2, badge: 'bg-green-400 text-white',        header: 'bg-green-50 border-green-200 text-green-700',  defaultOpen: false },
 ]
 
-function CollectionGroups({ payments, onPay }) {
+function CollectionGroups({ payments, onPay, onCollectLapseFee }) {
   const [open, setOpen] = useState(() =>
     Object.fromEntries(GROUPS.map((g) => [g.key, g.defaultOpen]))
   )
@@ -472,7 +476,7 @@ function CollectionGroups({ payments, onPay }) {
             {open[g.key] && (
               <div className="flex flex-col gap-1.5 pl-1">
                 {items.map((p) => (
-                  <PaymentItem key={p.id} payment={p} onPay={onPay} />
+                  <PaymentItem key={p.id} payment={p} onPay={onPay} onCollectLapseFee={onCollectLapseFee} />
                 ))}
               </div>
             )}
@@ -487,13 +491,30 @@ export default function Home() {
   const { data: payments = [], isLoading } = useUpcomingPayments()
   const markPaid = useMarkPaid()
   const skipPayment = useSkipPayment()
+  const collectLapseFee = useCollectLapseFee()
+  const toast = useToast()
   const [selected, setSelected] = useState(null)
+  const [collectingLapseFee, setCollectingLapseFee] = useState(null)
+
+  const handleCollectLapseFee = async () => {
+    try {
+      await collectLapseFee.mutateAsync({ paymentId: collectingLapseFee.id, loanId: collectingLapseFee.loan_id })
+      toast({ message: 'Lapse interest collected!', type: 'success' })
+      setCollectingLapseFee(null)
+    } catch {
+      toast({ message: 'Failed to collect lapse interest', type: 'error' })
+    }
+  }
   const [filter, setFilter] = useState('all')
   const [installDismissed, setInstallDismissed] = useState(false)
   const { canInstall, install } = useInstallPrompt()
 
   const sorted = [...payments]
-    .filter((p) => filter === 'all' || p.loan?.type === filter)
+    .filter((p) => {
+      if (filter === 'all') return true
+      if (filter === 'lapse') return !!p.is_lapse_fee
+      return p.loan?.type === filter && !p.is_lapse_fee
+    })
     .sort((a, b) => getDayDiff(a.due_date) - getDayDiff(b.due_date))
 
   return (
@@ -514,17 +535,20 @@ export default function Home() {
           <button onClick={() => setInstallDismissed(true)} className="text-teal-300 text-lg leading-none shrink-0">✕</button>
         </div>
       )}
-      <div className="flex gap-2 mb-3">
+      <div className="flex gap-2 mb-3 flex-wrap">
         {[
           { value: 'all', label: 'All' },
           { value: 'monthly', label: 'Monthly' },
+          { value: 'lapse', label: 'Lapse' },
           { value: 'weekly', label: 'Weekly' },
         ].map((f) => (
           <button
             key={f.value}
             onClick={() => setFilter(f.value)}
             className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${
-              filter === f.value ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 border border-gray-200'
+              filter === f.value
+                ? f.value === 'lapse' ? 'bg-yellow-500 text-white' : 'bg-blue-600 text-white'
+                : 'bg-white text-gray-600 border border-gray-200'
             }`}
           >
             {f.label}
@@ -539,11 +563,11 @@ export default function Home() {
           <CheckCircle size={48} className="text-green-400 mx-auto mb-3" />
           <p className="font-medium text-gray-700">All clear!</p>
           <p className="text-sm text-gray-400 mt-1">
-            {filter === 'all' ? 'No collections due in the next 3 days.' : `No ${filter} collections due.`}
+            {filter === 'all' ? 'No collections due in the next 3 days.' : filter === 'lapse' ? 'No lapse interest due.' : `No ${filter} collections due.`}
           </p>
         </div>
       ) : (
-        <CollectionGroups payments={sorted} onPay={setSelected} />
+        <CollectionGroups payments={sorted} onPay={setSelected} onCollectLapseFee={setCollectingLapseFee} />
       )}
 
       <Modal
@@ -558,6 +582,34 @@ export default function Home() {
           markPaid={markPaid}
           skipPayment={skipPayment}
         />
+      </Modal>
+
+      <Modal open={!!collectingLapseFee} onClose={() => setCollectingLapseFee(null)} title="Collect Lapse Interest">
+        {collectingLapseFee && (
+          <div className="flex flex-col gap-4">
+            <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 flex flex-col gap-2 text-sm">
+              <div className="flex justify-between">
+                <span className="text-gray-500">Borrower</span>
+                <span className="font-semibold text-gray-900">{collectingLapseFee.loan?.borrower?.name}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">Amount</span>
+                <span className="font-semibold text-yellow-700">{formatPeso(collectingLapseFee.amount_due)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">Type</span>
+                <span className="font-medium text-yellow-700">Unpaid Lapse Interest</span>
+              </div>
+            </div>
+            <p className="text-sm text-center text-gray-500">Confirm collection of lapse interest?</p>
+            <div className="flex gap-3">
+              <Button variant="outline" size="full" onClick={() => setCollectingLapseFee(null)}>Cancel</Button>
+              <Button size="full" onClick={handleCollectLapseFee} disabled={collectLapseFee.isPending}>
+                {collectLapseFee.isPending ? 'Collecting...' : 'Confirm'}
+              </Button>
+            </div>
+          </div>
+        )}
       </Modal>
 
       <FAB />
