@@ -538,7 +538,7 @@ function LoanCard({ loan }) {
 
   const handleCollectLapseFee = async () => {
     try {
-      await collectLapseFee.mutateAsync({ paymentId: collectingLapseFee.id })
+      await collectLapseFee.mutateAsync({ paymentId: collectingLapseFee.id, loanId: loan.id })
       toast({ message: 'Lapse fee collected!', type: 'success' })
       setCollectingLapseFee(null)
     } catch {

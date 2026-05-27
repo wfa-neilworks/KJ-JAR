@@ -110,12 +110,13 @@ export function useMarkPaid() {
         })
         if (rollErr) throw rollErr
       } else {
-        // Check directly in DB whether any other unpaid rows remain for this loan
+        // Check directly in DB whether any other unpaid non-lapse-fee rows remain for this loan
         const { data: remaining } = await supabase
           .from('payments')
           .select('id')
           .eq('loan_id', loanId)
           .is('paid_at', null)
+          .neq('is_lapse_fee', true)
           .neq('id', paymentId)
           .limit(1)
 
@@ -139,13 +140,30 @@ export function useMarkPaid() {
 export function useCollectLapseFee() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async ({ paymentId }) => {
+    mutationFn: async ({ paymentId, loanId }) => {
       const now = new Date().toISOString()
       const { error } = await supabase
         .from('payments')
         .update({ paid_at: now, amount_paid: null, collection_type: 'complete' })
         .eq('id', paymentId)
       if (error) throw error
+
+      // Check if all non-lapse-fee rows are also paid — if so, close the loan
+      const { data: remaining } = await supabase
+        .from('payments')
+        .select('id')
+        .eq('loan_id', loanId)
+        .is('paid_at', null)
+        .neq('is_lapse_fee', true)
+        .limit(1)
+
+      if (!remaining || remaining.length === 0) {
+        const { error: loanErr } = await supabase
+          .from('loans')
+          .update({ status: 'completed' })
+          .eq('id', loanId)
+        if (loanErr) throw loanErr
+      }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['payments'] })
