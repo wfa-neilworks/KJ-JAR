@@ -635,10 +635,15 @@ function LoanCard({ loan }) {
         <div className="px-4 pb-4 flex flex-col gap-3 border-t border-gray-100">
           <div className="flex items-center justify-between pt-3">
             <p className="text-sm text-gray-500">
-              Overall Borrowed: <span className="font-medium text-gray-700">{formatPeso(
-                Number(loan.principal) +
-                (loan.payments || []).filter((p) => p.is_lapse_fee).reduce((s, p) => s + Number(p.amount_due), 0)
-              )}</span>
+              Overall Borrowed: <span className="font-medium text-gray-700">{formatPeso((() => {
+                const payments = loan.payments || []
+                const lapseFeeTotal = payments.filter((p) => p.is_lapse_fee).reduce((s, p) => s + Number(p.amount_due), 0)
+                // Latest unpaid rollover amount_due already includes principal + interest
+                const latestRollover = payments
+                  .filter((p) => !p.is_lapse_fee && !p.is_renewal_marker && !p.paid_at)
+                  .sort((a, b) => b.week_number - a.week_number)[0]
+                return lapseFeeTotal + (latestRollover ? Number(latestRollover.amount_due) : Number(loan.principal))
+              })())}</span>
             </p>
             <div className="flex items-center gap-1">
               <button
