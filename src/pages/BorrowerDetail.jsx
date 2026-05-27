@@ -511,7 +511,7 @@ function CollectModal({ payment, loan, markPaid, onClose }) {
                 {lapseWithInterest && (
                   <div className="flex justify-between pt-1">
                     <span className="text-gray-500">Lapse fee</span>
-                    <span className="font-semibold">{formatPeso(interest)}</span>
+                    <span className="font-semibold">{formatPeso(interest * (1 + rate / 100))}</span>
                   </div>
                 )}
               </>

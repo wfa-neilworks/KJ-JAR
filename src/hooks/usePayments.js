@@ -54,11 +54,13 @@ export function useMarkPaid() {
         const newDueDate = format(addMonths(dueDateBase, 1), 'yyyy-MM-dd')
 
         // Insert lapse fee row only when user chose to charge interest on the lapse
+        // Fee = interest × (1 + rate%) — e.g. ₱4,000 at 20% → ₱4,800
         if (lapseWithInterest) {
+          const lapseFeeDue = interest * (1 + interestRate / 100)
           const { error: feeErr } = await supabase.from('payments').insert({
             loan_id: loanId,
             week_number: maxWeek + 1,
-            amount_due: interest,
+            amount_due: lapseFeeDue,
             due_date: newDueDate,
             is_lapse_fee: true,
             lapse_with_interest: true,
