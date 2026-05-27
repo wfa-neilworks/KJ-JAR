@@ -1,13 +1,12 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
-import { format, addDays, addMonths, startOfDay } from 'date-fns'
+import { format, addDays, addMonths } from 'date-fns'
 import { parseLocalDate } from '@/lib/loanUtils'
 
 export function useUpcomingPayments() {
   return useQuery({
     queryKey: ['payments', 'upcoming'],
     queryFn: async () => {
-      const today = format(startOfDay(new Date()), 'yyyy-MM-dd')
       const dayAfterTomorrow = format(addDays(new Date(), 2), 'yyyy-MM-dd')
 
       const { data, error } = await supabase
@@ -53,27 +52,25 @@ export function useMarkPaid() {
         const interest = principal * (interestRate / 100)
         const newDueDate = format(addMonths(dueDateBase, 1), 'yyyy-MM-dd')
 
-        // Insert lapse fee row only when user chose to charge interest on the lapse
-        // Fee = interest × (1 + rate%) — e.g. ₱4,000 at 20% → ₱4,800
-        if (lapseWithInterest) {
-          const lapseFeeDue = interest * (1 + interestRate / 100)
-          const { error: feeErr } = await supabase.from('payments').insert({
-            loan_id: loanId,
-            week_number: maxWeek + 1,
-            amount_due: lapseFeeDue,
-            due_date: newDueDate,
-            is_lapse_fee: true,
-            lapse_with_interest: true,
-          })
-          if (feeErr) throw feeErr
-        }
+        // Insert lapse fee row — always created
+        // OFF: fee = normal interest (e.g. ₱4,000)
+        // ON:  fee = interest × (1 + rate%) — interest on interest (e.g. ₱4,800)
+        const lapseFeeDue = lapseWithInterest ? interest * (1 + interestRate / 100) : interest
+        const { error: feeErr } = await supabase.from('payments').insert({
+          loan_id: loanId,
+          week_number: maxWeek + 1,
+          amount_due: lapseFeeDue,
+          due_date: newDueDate,
+          is_lapse_fee: true,
+          lapse_with_interest: lapseWithInterest ?? false,
+        })
+        if (feeErr) throw feeErr
 
         // Insert rollover row next month (full capital + interest)
-        // week_number offset: +2 if lapse fee row was inserted, +1 if not
         const newTotalDue = principal * (1 + interestRate / 100)
         const { error: rollErr } = await supabase.from('payments').insert({
           loan_id: loanId,
-          week_number: lapseWithInterest ? maxWeek + 2 : maxWeek + 1,
+          week_number: maxWeek + 2,
           amount_due: newTotalDue,
           due_date: newDueDate,
         })

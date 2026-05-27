@@ -384,12 +384,10 @@ function CollectionModal({ selected, payments, onClose, markPaid }) {
                   <span className="text-sm text-gray-600">Lapse with interest?</span>
                   <Toggle value={lapseWithInterest} onChange={setLapseWithInterest} />
                 </div>
-                {lapseWithInterest && (
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Lapse fee</span>
-                    <span className="font-semibold text-red-700">{formatPeso(interest * (1 + rate / 100))}</span>
-                  </div>
-                )}
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Lapse fee</span>
+                  <span className="font-semibold text-red-700">{formatPeso(lapseWithInterest ? interest * (1 + rate / 100) : interest)}</span>
+                </div>
               </div>
             )}
             {note && <p className="text-xs text-gray-400 mt-2 italic">Note: "{note}"</p>}

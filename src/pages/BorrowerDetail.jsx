@@ -508,12 +508,10 @@ function CollectModal({ payment, loan, markPaid, onClose }) {
                   <span className="text-gray-500">Lapse with interest?</span>
                   <Toggle value={lapseWithInterest} onChange={setLapseWithInterest} />
                 </div>
-                {lapseWithInterest && (
-                  <div className="flex justify-between pt-1">
-                    <span className="text-gray-500">Lapse fee</span>
-                    <span className="font-semibold">{formatPeso(interest * (1 + rate / 100))}</span>
-                  </div>
-                )}
+                <div className="flex justify-between pt-1">
+                  <span className="text-gray-500">Lapse fee</span>
+                  <span className="font-semibold">{formatPeso(lapseWithInterest ? interest * (1 + rate / 100) : interest)}</span>
+                </div>
               </>
             )}
           </div>
