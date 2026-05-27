@@ -49,7 +49,7 @@ function PaymentItem({ payment, onPay, onCollectLapseFee }) {
 
   return (
     <div
-      className={cn('rounded-xl border px-4 py-3 flex items-center gap-3 cursor-pointer active:scale-[0.98] transition-transform', isLapseFee ? 'bg-yellow-50 border-yellow-200' : bg)}
+      className={cn('rounded-xl border px-4 py-3 flex items-center gap-3 cursor-pointer active:scale-[0.98] transition-transform', bg)}
       onClick={() => isLapseFee ? onCollectLapseFee(payment) : onPay(payment)}
     >
       <div className="flex-1">
