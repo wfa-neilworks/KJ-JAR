@@ -533,6 +533,7 @@ function LoanCard({ loan }) {
   const [editLoan, setEditLoan] = useState(false)
   const [editPayment, setEditPayment] = useState(null)
   const [collectingLapseFee, setCollectingLapseFee] = useState(null)
+  const [collapsedCycles, setCollapsedCycles] = useState({ 0: true }) // original cycle collapsed by default
   const [collectingWeek, setCollectingWeek] = useState(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [renewing, setRenewing] = useState(false)
@@ -644,106 +645,141 @@ function LoanCard({ loan }) {
           </div>
 
           {/* Payment trail */}
-          {loan.payments && loan.payments.length > 0 && (
-            <div className="flex flex-col gap-1.5">
-              <p className="text-xs font-medium text-gray-600 uppercase tracking-wide">Payments</p>
-              {loan.payments.map((p) => {
-                // Renewal marker — show as a special divider row
-                if (p.is_renewal_marker) {
-                  return (
-                    <div key={p.id} className="flex items-center gap-2 py-2 px-3 rounded-lg bg-purple-50 border border-purple-200">
-                      <RefreshCw size={13} className="text-purple-500 shrink-0" />
-                      <span className="text-sm font-semibold text-purple-700">Loan Renewed</span>
-                      <span className="text-xs text-purple-500 ml-auto">{formatDateTime(p.paid_at)}</span>
-                    </div>
-                  )
-                }
+          {loan.payments && loan.payments.length > 0 && (() => {
+            const isWeeklyLoan = loan.type === 'weekly'
+            const sorted = [...loan.payments].sort((a, b) => a.week_number - b.week_number)
 
-                const isLapsed = p.collection_type === 'lapsed' && p.paid_at
-                const isUnpaidLapseFee = p.is_lapse_fee && !p.paid_at
-                const rowBg = p.paid_at && !isLapsed ? 'bg-green-50' : isLapsed ? 'bg-red-50' : isUnpaidLapseFee ? 'bg-yellow-50' : 'bg-gray-50'
+            // Split into cycles: cycle 0 = before first renewal marker, cycle N = after Nth marker
+            const cycles = [] // [{ marker: payment|null, payments: payment[] }]
+            let current = { marker: null, payments: [] }
+            for (const p of sorted) {
+              if (p.is_renewal_marker) {
+                cycles.push(current)
+                current = { marker: p, payments: [] }
+              } else {
+                current.payments.push(p)
+              }
+            }
+            cycles.push(current)
 
-                // For weekly loans, label relative to the last renewal marker
-                let label
-                if (p.is_lapse_fee) {
-                  label = 'Unpaid Interest (Lapse)'
-                } else if (loan.type === 'weekly') {
-                  const renewalMarkers = loan.payments
-                    .filter((r) => r.is_renewal_marker)
-                    .sort((a, b) => a.week_number - b.week_number)
-                  const renewalsBefore = renewalMarkers.filter((r) => r.week_number < p.week_number).length
-                  if (renewalsBefore === 0) {
-                    label = `Week ${p.week_number}`
-                  } else {
-                    const lastMarkerWeek = renewalMarkers[renewalsBefore - 1].week_number
-                    label = `R${renewalsBefore}-Week ${p.week_number - lastMarkerWeek}`
-                  }
+            const toggleCycle = (idx) =>
+              setCollapsedCycles((prev) => ({ ...prev, [idx]: !prev[idx] }))
+
+            const renderPaymentRow = (p, cycleIdx) => {
+              const isLapsed = p.collection_type === 'lapsed' && p.paid_at
+              const isUnpaidLapseFee = p.is_lapse_fee && !p.paid_at
+              const rowBg = p.paid_at && !isLapsed ? 'bg-green-50' : isLapsed ? 'bg-red-50' : isUnpaidLapseFee ? 'bg-yellow-50' : 'bg-gray-50'
+
+              let label
+              if (p.is_lapse_fee) {
+                label = 'Unpaid Interest (Lapse)'
+              } else if (isWeeklyLoan) {
+                if (cycleIdx === 0) {
+                  label = `Week ${p.week_number}`
                 } else {
-                  label = `Payment #${p.week_number}`
+                  const markerWeek = cycles[cycleIdx].marker.week_number
+                  label = `R${cycleIdx}-Week ${p.week_number - markerWeek}`
                 }
-                return (
-                  <div
-                    key={p.id}
-                    className={`flex flex-col gap-1 text-sm py-2 px-3 rounded-lg ${rowBg} ${isUnpaidLapseFee ? 'cursor-pointer hover:brightness-95' : ''}`}
-                    onClick={isUnpaidLapseFee ? () => setCollectingLapseFee(p) : undefined}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="text-gray-600">
-                        {label}
-                        {' — '}
-                        {isLapsed
-                          ? `Lapsed ${formatDateTime(p.paid_at)}`
-                          : p.paid_at
-                          ? formatDateTime(p.paid_at)
-                          : `Due ${formatDate(p.due_date)}`}
+              } else {
+                label = `Payment #${p.week_number}`
+              }
+
+              return (
+                <div
+                  key={p.id}
+                  className={`flex flex-col gap-1 text-sm py-2 px-3 rounded-lg ${rowBg} ${isUnpaidLapseFee ? 'cursor-pointer hover:brightness-95' : ''}`}
+                  onClick={isUnpaidLapseFee ? () => setCollectingLapseFee(p) : undefined}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-600">
+                      {label}{' — '}
+                      {isLapsed
+                        ? `Lapsed ${formatDateTime(p.paid_at)}`
+                        : p.paid_at
+                        ? formatDateTime(p.paid_at)
+                        : `Due ${formatDate(p.due_date)}`}
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className={`font-semibold ${p.paid_at && !isLapsed ? 'text-green-600' : isLapsed ? 'text-red-500' : isUnpaidLapseFee ? 'text-yellow-700' : 'text-gray-800'}`}>
+                        {p.paid_at && p.amount_paid != null ? formatPeso(p.amount_paid) : formatPeso(p.amount_due)}
                       </span>
-                      <div className="flex items-center gap-2">
-                        <span className={`font-semibold ${p.paid_at && !isLapsed ? 'text-green-600' : isLapsed ? 'text-red-500' : isUnpaidLapseFee ? 'text-yellow-700' : 'text-gray-800'}`}>
-                          {p.paid_at && p.amount_paid != null ? formatPeso(p.amount_paid) : formatPeso(p.amount_due)}
-                        </span>
-                        {!p.paid_at && nextCollectible?.id === p.id && (
-                          <button
-                            onClick={(e) => { e.stopPropagation(); setCollectingWeek(p) }}
-                            className="text-xs font-semibold px-2.5 py-1 rounded-full bg-green-500 text-white hover:bg-green-600 transition-colors"
-                          >
-                            Collect
-                          </button>
-                        )}
-                        {p.paid_at && !isUnpaidLapseFee && (
-                          <button
-                            onClick={(e) => { e.stopPropagation(); setEditPayment(p) }}
-                            className="p-1 rounded-full hover:bg-white text-gray-400 hover:text-gray-700"
-                            title="Edit payment"
-                          >
-                            <Pencil size={13} />
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      {isLapsed && (
-                        <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-red-100 text-red-700">Lapsed</span>
+                      {!p.paid_at && nextCollectible?.id === p.id && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setCollectingWeek(p) }}
+                          className="text-xs font-semibold px-2.5 py-1 rounded-full bg-green-500 text-white hover:bg-green-600 transition-colors"
+                        >
+                          Collect
+                        </button>
                       )}
-                      {isUnpaidLapseFee && (
-                        <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700">Tap to collect</span>
-                      )}
-                      {p.paid_at && !isLapsed && !p.is_lapse_fee && (
-                        <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${collectionBadge[p.collection_type] || collectionBadge.complete}`}>
-                          {collectionLabel[p.collection_type] || 'Complete'}
-                        </span>
-                      )}
-                      {p.paid_at && p.is_lapse_fee && (
-                        <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-green-100 text-green-700">Interest Collected</span>
-                      )}
-                      {p.note && (
-                        <span className="text-xs text-gray-500 italic">"{p.note}"</span>
+                      {p.paid_at && !isUnpaidLapseFee && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setEditPayment(p) }}
+                          className="p-1 rounded-full hover:bg-white text-gray-400 hover:text-gray-700"
+                          title="Edit payment"
+                        >
+                          <Pencil size={13} />
+                        </button>
                       )}
                     </div>
                   </div>
-                )
-              })}
-            </div>
-          )}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {isLapsed && <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-red-100 text-red-700">Lapsed</span>}
+                    {isUnpaidLapseFee && <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700">Tap to collect</span>}
+                    {p.paid_at && !isLapsed && !p.is_lapse_fee && (
+                      <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${collectionBadge[p.collection_type] || collectionBadge.complete}`}>
+                        {collectionLabel[p.collection_type] || 'Complete'}
+                      </span>
+                    )}
+                    {p.paid_at && p.is_lapse_fee && (
+                      <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-green-100 text-green-700">Interest Collected</span>
+                    )}
+                    {p.note && <span className="text-xs text-gray-500 italic">"{p.note}"</span>}
+                  </div>
+                </div>
+              )
+            }
+
+            return (
+              <div className="flex flex-col gap-1.5">
+                <p className="text-xs font-medium text-gray-600 uppercase tracking-wide">Payments</p>
+                {cycles.map((cycle, cycleIdx) => {
+                  const isCollapsed = !!collapsedCycles[cycleIdx]
+                  const isOriginal = cycleIdx === 0
+                  const hasRenewalMarker = cycles.length > 1 // only show toggle on original if there are renewals
+
+                  return (
+                    <div key={cycleIdx} className="flex flex-col gap-1.5">
+                      {/* Renewal marker divider (for R1, R2, etc.) */}
+                      {cycle.marker && (
+                        <div className="flex items-center gap-2 py-2 px-3 rounded-lg bg-purple-50 border border-purple-200">
+                          <RefreshCw size={13} className="text-purple-500 shrink-0" />
+                          <span className="text-sm font-semibold text-purple-700">Loan Renewed</span>
+                          <span className="text-xs text-purple-500 ml-auto">{formatDateTime(cycle.marker.paid_at)}</span>
+                        </div>
+                      )}
+
+                      {/* Collapsible header for original cycle (only when renewals exist) */}
+                      {isOriginal && hasRenewalMarker && cycle.payments.length > 0 && (
+                        <button
+                          onClick={() => toggleCycle(cycleIdx)}
+                          className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors text-left"
+                        >
+                          <span className="text-xs font-semibold text-gray-600 flex-1">Original Loan</span>
+                          {isCollapsed
+                            ? <ChevronDown size={14} className="text-gray-400" />
+                            : <ChevronUp size={14} className="text-gray-400" />}
+                        </button>
+                      )}
+
+                      {/* Payment rows */}
+                      {(!isOriginal || !hasRenewalMarker || !isCollapsed) &&
+                        cycle.payments.map((p) => renderPaymentRow(p, cycleIdx))}
+                    </div>
+                  )
+                })}
+              </div>
+            )
+          })()}
         </div>
       )}
 
