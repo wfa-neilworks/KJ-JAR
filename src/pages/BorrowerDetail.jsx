@@ -319,6 +319,7 @@ function CollectModal({ payment, loan, markPaid, onClose }) {
   const [pendingType, setPendingType] = useState(null)
   const [partialAmount, setPartialAmount] = useState('')
   const [note, setNote] = useState('')
+  const [lapseWithInterest, setLapseWithInterest] = useState(false)
 
   const isMonthly = loan.type === 'monthly'
   const rate = Number(loan.interest_rate)
@@ -363,6 +364,7 @@ function CollectModal({ payment, loan, markPaid, onClose }) {
         principal: effectiveCapital,
         note,
         dueDate: payment.due_date,
+        lapseWithInterest: pendingType === 'lapsed' ? lapseWithInterest : false,
       })
       toast({ message: 'Payment recorded!', type: 'success' })
       onClose()
@@ -498,6 +500,27 @@ function CollectModal({ payment, loan, markPaid, onClose }) {
                   {pendingType === 'complete' ? formatPeso(amountDue) : pendingType === 'interest_only' ? formatPeso(interest) : formatPeso(parseFloat(partialAmount))}
                 </span>
               </div>
+            )}
+            {pendingType === 'lapsed' && (
+              <>
+                <div className="flex justify-between items-center pt-1">
+                  <span className="text-gray-500">Lapse with interest?</span>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setLapseWithInterest(false)}
+                      className={`px-3 py-1 rounded-full text-xs font-semibold border transition-colors ${!lapseWithInterest ? 'bg-red-600 text-white border-red-600' : 'bg-white text-gray-500 border-gray-300'}`}
+                    >No</button>
+                    <button
+                      onClick={() => setLapseWithInterest(true)}
+                      className={`px-3 py-1 rounded-full text-xs font-semibold border transition-colors ${lapseWithInterest ? 'bg-red-600 text-white border-red-600' : 'bg-white text-gray-500 border-gray-300'}`}
+                    >Yes</button>
+                  </div>
+                </div>
+                <div className="flex justify-between pt-1">
+                  <span className="text-gray-500">Lapse fee</span>
+                  <span className="font-semibold">{formatPeso(lapseWithInterest ? interest * 2 : interest)}</span>
+                </div>
+              </>
             )}
           </div>
           <p className="text-sm text-center text-gray-500">Confirm this collection?</p>
