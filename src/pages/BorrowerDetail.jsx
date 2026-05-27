@@ -312,6 +312,7 @@ function RenewLoanModal({ loan, onClose }) {
 
 function CollectModal({ payment, loan, markPaid, onClose }) {
   const toast = useToast()
+  const skipPayment = useSkipPayment()
   const [step, setStep] = useState('choose') // 'choose' | 'partial' | 'confirm'
   const [pendingType, setPendingType] = useState(null)
   const [partialAmount, setPartialAmount] = useState('')
@@ -335,6 +336,16 @@ function CollectModal({ payment, loan, markPaid, onClose }) {
     }
     setPendingType(type)
     setStep('confirm')
+  }
+
+  const handleSkip = async () => {
+    try {
+      await skipPayment.mutateAsync({ paymentId: payment.id })
+      toast({ message: 'Payment skipped', type: 'success' })
+      onClose()
+    } catch {
+      toast({ message: 'Failed to skip payment', type: 'error' })
+    }
   }
 
   const handleCollect = async () => {
@@ -415,6 +426,17 @@ function CollectModal({ payment, loan, markPaid, onClose }) {
             <p className="font-semibold text-green-700">{isMonthly ? 'Complete Collection' : `Collect Week ${payment.week_number}`}</p>
             <p className="text-sm text-green-600 mt-0.5">Collect full {formatPeso(amountDue)}{isMonthly ? ' — loan cleared' : ''}</p>
           </button>
+
+          {!isMonthly && (
+            <button
+              onClick={handleSkip}
+              disabled={skipPayment.isPending}
+              className="w-full text-left rounded-xl border-2 border-gray-200 bg-gray-50 px-4 py-3 hover:border-gray-400 transition-colors disabled:opacity-50"
+            >
+              <p className="font-semibold text-gray-600">Skip</p>
+              <p className="text-sm text-gray-500 mt-0.5">Remove from reminders — still collectible from this page</p>
+            </button>
+          )}
 
           {isMonthly && (
             <button
