@@ -505,7 +505,7 @@ export default function Home() {
       toast({ message: 'Failed to collect lapse interest', type: 'error' })
     }
   }
-  const [filter, setFilter] = useState('all')
+  const [filter, setFilter] = useState('monthly')
   const [installDismissed, setInstallDismissed] = useState(false)
   const { canInstall, install } = useInstallPrompt()
 
@@ -539,7 +539,6 @@ export default function Home() {
       )}
       <div className="flex gap-2 mb-3 flex-wrap">
         {[
-          { value: 'all', label: 'All' },
           { value: 'monthly', label: 'Monthly' },
           { value: 'lapse', label: 'M-Lapse' },
           { value: 'weekly', label: 'Weekly' },
@@ -566,7 +565,7 @@ export default function Home() {
           <CheckCircle size={48} className="text-green-400 mx-auto mb-3" />
           <p className="font-medium text-gray-700">All clear!</p>
           <p className="text-sm text-gray-400 mt-1">
-            {filter === 'all' ? 'No collections due in the next 3 days.' : filter === 'lapse' ? 'No lapse interest due.' : filter === 'skipped' ? 'No skipped weekly payments.' : `No ${filter} collections due.`}
+            {filter === 'lapse' ? 'No lapse interest due.' : filter === 'skipped' ? 'No skipped weekly payments.' : `No ${filter} collections due.`}
           </p>
         </div>
       ) : (
