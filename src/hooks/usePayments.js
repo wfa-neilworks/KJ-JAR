@@ -13,7 +13,6 @@ export function useUpcomingPayments() {
         .from('payments')
         .select('*, loan:loans(id, type, principal, interest_rate, total_due, borrower:borrowers(id, name, mobile))')
         .is('paid_at', null)
-        .neq('is_skipped', true)
         .lte('due_date', dayAfterTomorrow)
         .order('due_date', { ascending: true })
 

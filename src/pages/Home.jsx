@@ -61,7 +61,7 @@ function PaymentItem({ payment, onPay, onCollectLapseFee }) {
           }
         </div>
         <p className="text-sm text-gray-500">
-          {isLapseFee ? 'Unpaid lapse interest' : payment.loan?.type === 'weekly' ? `Week ${payment.week_number}` : 'Monthly payment'} &nbsp;·&nbsp; {formatDate(payment.due_date)}
+          {isLapseFee ? 'Unpaid lapse interest' : payment.loan?.type === 'weekly' ? `Week ${payment.week_number}${payment.is_skipped ? ' — Skipped' : ''}` : 'Monthly payment'} &nbsp;·&nbsp; {formatDate(payment.due_date)}
         </p>
         <p className="text-sm text-gray-400">{payment.loan?.borrower?.mobile}</p>
       </div>
@@ -511,6 +511,8 @@ export default function Home() {
 
   const sorted = [...payments]
     .filter((p) => {
+      if (filter === 'skipped') return !!p.is_skipped && p.loan?.type === 'weekly'
+      if (p.is_skipped) return false // hide skipped from all other tabs
       if (filter === 'all') return true
       if (filter === 'lapse') return !!p.is_lapse_fee
       return p.loan?.type === filter && !p.is_lapse_fee
@@ -541,13 +543,14 @@ export default function Home() {
           { value: 'monthly', label: 'Monthly' },
           { value: 'lapse', label: 'M-Lapse' },
           { value: 'weekly', label: 'Weekly' },
+          { value: 'skipped', label: 'W-Skipped' },
         ].map((f) => (
           <button
             key={f.value}
             onClick={() => setFilter(f.value)}
             className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${
               filter === f.value
-                ? f.value === 'lapse' ? 'bg-yellow-500 text-white' : 'bg-blue-600 text-white'
+                ? f.value === 'lapse' ? 'bg-yellow-500 text-white' : f.value === 'skipped' ? 'bg-gray-500 text-white' : 'bg-blue-600 text-white'
                 : 'bg-white text-gray-600 border border-gray-200'
             }`}
           >
@@ -563,7 +566,7 @@ export default function Home() {
           <CheckCircle size={48} className="text-green-400 mx-auto mb-3" />
           <p className="font-medium text-gray-700">All clear!</p>
           <p className="text-sm text-gray-400 mt-1">
-            {filter === 'all' ? 'No collections due in the next 3 days.' : filter === 'lapse' ? 'No lapse interest due.' : `No ${filter} collections due.`}
+            {filter === 'all' ? 'No collections due in the next 3 days.' : filter === 'lapse' ? 'No lapse interest due.' : filter === 'skipped' ? 'No skipped weekly payments.' : `No ${filter} collections due.`}
           </p>
         </div>
       ) : (
