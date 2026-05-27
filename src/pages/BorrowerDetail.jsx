@@ -195,22 +195,18 @@ function EditPaymentModal({ payment, loan, onClose }) {
 
   return (
     <form onSubmit={submit} className="flex flex-col gap-4">
-      {!isWeekly && (
-        <Input
-          label="Amount Due (PHP)"
-          type="number"
-          min="1"
-          step="0.01"
-          value={amountDue}
-          onChange={(e) => setAmountDue(e.target.value)}
-        />
-      )}
-      <Input
-        label="Due Date"
-        type="date"
-        value={dueDate}
-        onChange={(e) => setDueDate(e.target.value)}
-      />
+      <div className="bg-gray-50 rounded-xl p-4 flex flex-col gap-2 text-sm">
+        {!isWeekly && (
+          <div className="flex justify-between">
+            <span className="text-gray-500">Amount Due</span>
+            <span className="font-semibold text-gray-900">{formatPeso(Number(amountDue))}</span>
+          </div>
+        )}
+        <div className="flex justify-between">
+          <span className="text-gray-500">Due Date</span>
+          <span className="font-semibold text-gray-900">{formatDate(dueDate)}</span>
+        </div>
+      </div>
       {payment.paid_at && !isWeekly && (
         <div className="flex flex-col gap-1">
           <Input
