@@ -10,6 +10,7 @@ import { useBorrowers, useEditBorrower } from '@/hooks/useBorrowers'
 import { useLoansByBorrower, useEditLoan, useEditPayment, useDeleteLoan, useRenewLoan } from '@/hooks/useLoans'
 import { useSettleLoansByBorrower, useDeleteSettleLoan, useDeleteSettlePayment, useEditSettleLoan, useEditSettlePayment } from '@/hooks/useSettle'
 import { useCollectLapseFee, useMarkPaid } from '@/hooks/usePayments'
+import Toggle from '@/components/ui/Toggle'
 import { useToast } from '@/components/ui/Toast'
 import { formatPeso } from '@/lib/loanUtils'
 
@@ -505,21 +506,14 @@ function CollectModal({ payment, loan, markPaid, onClose }) {
               <>
                 <div className="flex justify-between items-center pt-1">
                   <span className="text-gray-500">Lapse with interest?</span>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => setLapseWithInterest(false)}
-                      className={`px-3 py-1 rounded-full text-xs font-semibold border transition-colors ${!lapseWithInterest ? 'bg-red-600 text-white border-red-600' : 'bg-white text-gray-500 border-gray-300'}`}
-                    >No</button>
-                    <button
-                      onClick={() => setLapseWithInterest(true)}
-                      className={`px-3 py-1 rounded-full text-xs font-semibold border transition-colors ${lapseWithInterest ? 'bg-red-600 text-white border-red-600' : 'bg-white text-gray-500 border-gray-300'}`}
-                    >Yes</button>
+                  <Toggle value={lapseWithInterest} onChange={setLapseWithInterest} />
+                </div>
+                {lapseWithInterest && (
+                  <div className="flex justify-between pt-1">
+                    <span className="text-gray-500">Lapse fee</span>
+                    <span className="font-semibold">{formatPeso(interest)}</span>
                   </div>
-                </div>
-                <div className="flex justify-between pt-1">
-                  <span className="text-gray-500">Lapse fee</span>
-                  <span className="font-semibold">{formatPeso(lapseWithInterest ? interest * 2 : interest)}</span>
-                </div>
+                )}
               </>
             )}
           </div>

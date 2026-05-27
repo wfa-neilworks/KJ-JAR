@@ -51,25 +51,27 @@ export function useMarkPaid() {
         const maxWeek = existingPayments?.[0]?.week_number || 1
 
         const interest = principal * (interestRate / 100)
-        const lapseFeeDue = lapseWithInterest ? interest * 2 : interest
         const newDueDate = format(addMonths(dueDateBase, 1), 'yyyy-MM-dd')
 
-        // Insert lapse fee row — interest (doubled if lapseWithInterest), unpaid, collectible anytime
-        const { error: feeErr } = await supabase.from('payments').insert({
-          loan_id: loanId,
-          week_number: maxWeek + 1,
-          amount_due: lapseFeeDue,
-          due_date: newDueDate,
-          is_lapse_fee: true,
-          lapse_with_interest: lapseWithInterest ?? false,
-        })
-        if (feeErr) throw feeErr
+        // Insert lapse fee row only when user chose to charge interest on the lapse
+        if (lapseWithInterest) {
+          const { error: feeErr } = await supabase.from('payments').insert({
+            loan_id: loanId,
+            week_number: maxWeek + 1,
+            amount_due: interest,
+            due_date: newDueDate,
+            is_lapse_fee: true,
+            lapse_with_interest: true,
+          })
+          if (feeErr) throw feeErr
+        }
 
         // Insert rollover row next month (full capital + interest)
+        // week_number offset: +2 if lapse fee row was inserted, +1 if not
         const newTotalDue = principal * (1 + interestRate / 100)
         const { error: rollErr } = await supabase.from('payments').insert({
           loan_id: loanId,
-          week_number: maxWeek + 2,
+          week_number: lapseWithInterest ? maxWeek + 2 : maxWeek + 1,
           amount_due: newTotalDue,
           due_date: newDueDate,
         })
