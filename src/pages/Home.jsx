@@ -539,7 +539,7 @@ export default function Home() {
         {[
           { value: 'all', label: 'All' },
           { value: 'monthly', label: 'Monthly' },
-          { value: 'lapse', label: 'Lapse' },
+          { value: 'lapse', label: 'M-Lapse' },
           { value: 'weekly', label: 'Weekly' },
         ].map((f) => (
           <button
