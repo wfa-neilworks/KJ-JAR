@@ -9,7 +9,7 @@ import Input from '@/components/ui/Input'
 import { useBorrowers, useEditBorrower } from '@/hooks/useBorrowers'
 import { useLoansByBorrower, useEditLoan, useEditPayment, useDeleteLoan, useRenewLoan } from '@/hooks/useLoans'
 import { useSettleLoansByBorrower, useDeleteSettleLoan, useDeleteSettlePayment, useEditSettleLoan, useEditSettlePayment } from '@/hooks/useSettle'
-import { useCollectLapseFee, useMarkPaid } from '@/hooks/usePayments'
+import { useCollectLapseFee, useMarkPaid, useSkipPayment } from '@/hooks/usePayments'
 import Toggle from '@/components/ui/Toggle'
 import { useToast } from '@/components/ui/Toast'
 import { formatPeso } from '@/lib/loanUtils'
@@ -541,10 +541,10 @@ function LoanCard({ loan }) {
   const paidPayments = loan.payments?.filter((p) => p.paid_at && !p.is_renewal_marker) || []
   const canRenew = loan.type === 'weekly' && loan.status === 'active' && paidPayments.length >= 1
 
-  // For weekly: only the next unpaid row. For monthly: the single unpaid row (if active).
+  // The next non-skipped unpaid row (shown with Collect button normally)
   const nextCollectible = loan.status === 'active'
     ? (loan.payments || [])
-        .filter((p) => !p.paid_at && !p.is_lapse_fee)
+        .filter((p) => !p.paid_at && !p.is_lapse_fee && !p.is_skipped)
         .sort((a, b) => a.week_number - b.week_number)[0] ?? null
     : null
 
@@ -668,7 +668,8 @@ function LoanCard({ loan }) {
             const renderPaymentRow = (p, cycleIdx) => {
               const isLapsed = p.collection_type === 'lapsed' && p.paid_at
               const isUnpaidLapseFee = p.is_lapse_fee && !p.paid_at
-              const rowBg = p.paid_at && !isLapsed ? 'bg-green-50' : isLapsed ? 'bg-red-50' : isUnpaidLapseFee ? 'bg-yellow-50' : 'bg-gray-50'
+              const isSkipped = !!p.is_skipped && !p.paid_at
+              const rowBg = p.paid_at && !isLapsed ? 'bg-green-50' : isLapsed ? 'bg-red-50' : isUnpaidLapseFee ? 'bg-yellow-50' : isSkipped ? 'bg-gray-100' : 'bg-gray-50'
 
               let label
               if (p.is_lapse_fee) {
@@ -703,7 +704,7 @@ function LoanCard({ loan }) {
                       <span className={`font-semibold ${p.paid_at && !isLapsed ? 'text-green-600' : isLapsed ? 'text-red-500' : isUnpaidLapseFee ? 'text-yellow-700' : 'text-gray-800'}`}>
                         {p.paid_at && p.amount_paid != null ? formatPeso(p.amount_paid) : formatPeso(p.amount_due)}
                       </span>
-                      {!p.paid_at && nextCollectible?.id === p.id && (
+                      {!p.paid_at && (nextCollectible?.id === p.id || isSkipped) && (
                         <button
                           onClick={(e) => { e.stopPropagation(); setCollectingWeek(p) }}
                           className="text-xs font-semibold px-2.5 py-1 rounded-full bg-green-500 text-white hover:bg-green-600 transition-colors"
@@ -724,6 +725,7 @@ function LoanCard({ loan }) {
                   </div>
                   <div className="flex items-center gap-2 flex-wrap">
                     {isLapsed && <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-red-100 text-red-700">Lapsed</span>}
+                    {isSkipped && <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-gray-200 text-gray-600">Skipped</span>}
                     {isUnpaidLapseFee && <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700">Tap to collect</span>}
                     {p.paid_at && !isLapsed && !p.is_lapse_fee && (
                       <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${collectionBadge[p.collection_type] || collectionBadge.complete}`}>

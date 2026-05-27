@@ -6,7 +6,7 @@ import Modal from '@/components/ui/Modal'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import FAB from '@/components/layout/FAB'
-import { useUpcomingPayments, useMarkPaid } from '@/hooks/usePayments'
+import { useUpcomingPayments, useMarkPaid, useSkipPayment } from '@/hooks/usePayments'
 import Toggle from '@/components/ui/Toggle'
 import { useRenewLoan } from '@/hooks/useLoans'
 import { useToast } from '@/components/ui/Toast'
@@ -77,7 +77,7 @@ const confirmLabels = {
   lapsed:        { title: 'Lapse',               color: 'text-red-700',    bg: 'bg-red-50 border-red-200'      },
 }
 
-function CollectionModal({ selected, payments, onClose, markPaid }) {
+function CollectionModal({ selected, payments, onClose, markPaid, skipPayment }) {
   const toast = useToast()
   const renewLoan = useRenewLoan()
   const [step, setStep] = useState('choose') // 'choose' | 'partial' | 'renew' | 'confirm'
@@ -126,6 +126,16 @@ function CollectionModal({ selected, payments, onClose, markPaid }) {
       onClose()
     } catch {
       toast({ message: 'Failed to renew loan', type: 'error' })
+    }
+  }
+
+  const handleSkip = async () => {
+    try {
+      await skipPayment.mutateAsync({ paymentId: selected.id })
+      toast({ message: 'Payment skipped — still collectible from borrower profile', type: 'success' })
+      onClose()
+    } catch {
+      toast({ message: 'Failed to skip payment', type: 'error' })
     }
   }
 
@@ -208,6 +218,17 @@ function CollectionModal({ selected, payments, onClose, markPaid }) {
               Collect full {formatPeso(amountDue)}{isWeekly ? '' : ' — loan cleared'}
             </p>
           </button>
+
+          {isWeekly && (
+            <button
+              onClick={handleSkip}
+              disabled={skipPayment.isPending}
+              className="w-full text-left rounded-xl border-2 border-gray-200 bg-gray-50 px-4 py-3 hover:border-gray-400 transition-colors disabled:opacity-50"
+            >
+              <p className="font-semibold text-gray-600">Skip</p>
+              <p className="text-sm text-gray-500 mt-0.5">Remove from reminders — still collectible from borrower profile</p>
+            </button>
+          )}
 
           {canRenew && (
             <button
@@ -465,6 +486,7 @@ function CollectionGroups({ payments, onPay }) {
 export default function Home() {
   const { data: payments = [], isLoading } = useUpcomingPayments()
   const markPaid = useMarkPaid()
+  const skipPayment = useSkipPayment()
   const [selected, setSelected] = useState(null)
   const [filter, setFilter] = useState('all')
   const [installDismissed, setInstallDismissed] = useState(false)
@@ -534,6 +556,7 @@ export default function Home() {
           payments={payments}
           onClose={() => setSelected(null)}
           markPaid={markPaid}
+          skipPayment={skipPayment}
         />
       </Modal>
 
